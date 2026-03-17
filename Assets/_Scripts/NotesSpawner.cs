@@ -1,4 +1,4 @@
-﻿/*
+/*
  * The spawner code and also the correct timing stuff was taken from the project:
  * BeatSaver Viewer (https://github.com/supermedium/beatsaver-viewer) and ported to C#.
  * 
@@ -20,6 +20,9 @@ using UnityEngine.SceneManagement;
 
 public class NotesSpawner : MonoBehaviour
 {
+    [Tooltip("Demon prefabs: [0]=Left, [1]=Right, [2]=Left NonDirection, [3]=Right NonDirection. Same layout as old Cubes.")]
+    public GameObject[] Demons;
+    [Tooltip("Legacy fallback if Demons empty. Can use cube prefabs; DemonHandling added at runtime.")]
     public GameObject[] Cubes;
     public GameObject Wall;
     public Transform[] SpawnPoints;
@@ -236,8 +239,10 @@ public class NotesSpawner : MonoBehaviour
             note.Hand += 2;
         }
 
-        GameObject cube = Instantiate(Cubes[(int)note.Hand], SpawnPoints[point]);
-        cube.transform.localPosition = Vector3.zero;
+        GameObject[] prefabs = (Demons != null && Demons.Length >= 4) ? Demons : GetFallbackCubes();
+        if (prefabs == null || prefabs.Length < 4) { Debug.LogWarning("[NotesSpawner] Assign Demons or Cubes (4 prefabs: Left, Right, Left NonDir, Right NonDir)."); return; }
+        GameObject demon = Instantiate(prefabs[(int)note.Hand], SpawnPoints[point]);
+        demon.transform.localPosition = Vector3.zero;
 
         float rotation = 0f;
 
@@ -274,12 +279,21 @@ public class NotesSpawner : MonoBehaviour
                 break;
         }
 
-        cube.transform.Rotate(transform.forward, rotation);
+        demon.transform.Rotate(transform.forward, rotation);
 
-        var handling = cube.GetComponent<CubeHandling>();
-        handling.AnticipationPosition = (float) (-beatAnticipationTime * beatSpeed - BeatsConstants.SWORD_OFFSET);
-        handling.Speed = (float)beatSpeed;
-        handling.WarmUpPosition = -beatWarmupTime * beatWarmupSpeed;
+        var demonHandling = demon.GetComponent<DemonHandling>();
+        if (demonHandling == null) demonHandling = demon.AddComponent<DemonHandling>();
+        demonHandling.AnticipationPosition = (float) (-beatAnticipationTime * beatSpeed - BeatsConstants.SWORD_OFFSET);
+        demonHandling.Speed = (float)beatSpeed;
+        demonHandling.WarmUpPosition = -beatWarmupTime * beatWarmupSpeed;
+
+        try { if (demon.CompareTag("Untagged")) demon.tag = "Demon"; } catch { /* Add "Demon" tag in Project Settings if needed */ }
+    }
+
+    /// <summary>Fallback to Cubes when Demons is empty (e.g. during migration).</summary>
+    private GameObject[] GetFallbackCubes()
+    {
+        return (Cubes != null && Cubes.Length >= 4) ? Cubes : Demons;
     }
 
     public void GenerateObstacle(Obstacle obstacle)

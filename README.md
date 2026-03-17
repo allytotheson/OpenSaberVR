@@ -27,6 +27,33 @@ After the song finished, just wait for 5 seconds and you will be pushed back to 
 
 ## Features
  - fully support for the songs from BeastSaber and BeatSaver
+ - **UDP Saber Mode**: Play without VR using Pico W controllers sending IMU data over UDP
+
+
+## UDP Saber Setup (Pico W Controllers)
+
+The project supports motion-controlled sabers over UDP, no XR/VR required.
+
+### 1. Pico W Firmware
+Send IMU packets (MPU6050: accel + gyro) as text over UDP. Format: `ax,ay,az,gx,gy,gz` (comma-separated).
+
+- Left saber: port **5000**
+- Right saber: port **5001**
+- Units: accel in g, gyro in deg/s
+
+### 2. Unity Scene Setup
+- **UDPSaberReceiver**: Add to a manager GameObject. Listens on ports 5000 and 5001.
+- **LeftSaber** / **RightSaber**: Create two saber GameObjects, tag them `LeftSaber` and `RightSaber`.
+- On each saber, add: `SaberMotionController` (hand Left/Right), `SwingDetector`, `DemonHitDetector`, `Slice` (on blade child with Renderer).
+- **SceneHandling**: Assign LeftSaber and RightSaber (or leave unset to find by tag).
+- **NotesSpawner**: Assign **Demons** array with 4 prefabs (Left, Right, Left NonDir, Right NonDir). Can use existing cube prefabs; `DemonHandling` is added at runtime.
+- **ScoreManager**: Optional, for score display.
+- Create the "Demon" tag in Project Settings > Tags if missing.
+
+### 3. IMU Filtering (recommended)
+MPU6050 needs filtering for drift. Ask Cursor to implement:
+- **Complementary filter**, or
+- **Madgwick filter**
 
 
 ## Hints

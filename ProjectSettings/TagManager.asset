@@ -9,6 +9,9 @@ TagManager:
   - SongSettings
   - SceneHandling
   - CubeNonDirection
+  - Demon
+  - LeftSaber
+  - RightSaber
   layers:
   - Default
   - TransparentFX
