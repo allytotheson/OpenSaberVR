@@ -3,6 +3,8 @@ using UnityEngine;
 /// <summary>
 /// Optional mouse-look for the non-VR fallback camera during gameplay.
 /// Hold right mouse to rotate; Esc releases the cursor. Disabled while in the menu.
+/// For the default developer desktop build, leave this component off so the view stays fixed
+/// (mouse is free for UI). Add only if you want to inspect the scene with right-drag.
 /// </summary>
 public class NonVRDesktopLook : MonoBehaviour
 {

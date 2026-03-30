@@ -40,7 +40,9 @@ public class SaberMotionController : MonoBehaviour
     {
         if (receiver == null) receiver = FindAnyObjectByType<UDPSaberReceiver>();
         if (saberTransform == null) saberTransform = transform;
-        if (playerRoot == null) playerRoot = Camera.main != null ? Camera.main.transform : null;
+        GameplayCameraEnsurer.Ensure();
+        if (playerRoot == null && GameplayCameraEnsurer.TryGetPreferredCamera(out Camera playCam))
+            playerRoot = playCam.transform;
 
         Vector3 startPos = basePosition;
         if (hand == SaberHand.Left) startPos.x = -Mathf.Abs(startPos.x);

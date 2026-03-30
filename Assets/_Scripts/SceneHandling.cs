@@ -10,7 +10,6 @@ using VRTK;
 /// </summary>
 public class SceneHandling : MonoBehaviour
 {
-    const string DesktopFallbackCameraName = "FallbackCamera_NonVR";
     [Header("UDP Sabers (assign or will find by tag)")]
     public GameObject LeftSaber;
     public GameObject RightSaber;
@@ -18,7 +17,7 @@ public class SceneHandling : MonoBehaviour
     private void Awake()
     {
         SuppressVrtkSdkLoadWhenNoHeadset();
-        EnsureDesktopFallbackCameraIfNoActiveCamera();
+        GameplayCameraEnsurer.Ensure();
     }
 
     private static void SuppressVrtkSdkLoadWhenNoHeadset()
@@ -30,32 +29,6 @@ public class SceneHandling : MonoBehaviour
         string device = string.IsNullOrEmpty(XRSettings.loadedDeviceName) ? "None" : XRSettings.loadedDeviceName;
         if (device == "None")
             mgr.autoLoadSetup = false;
-#endif
-    }
-
-    private static void EnsureDesktopFallbackCameraIfNoActiveCamera()
-    {
-#if UNITY_EDITOR || UNITY_STANDALONE
-        string device = string.IsNullOrEmpty(XRSettings.loadedDeviceName) ? "None" : XRSettings.loadedDeviceName;
-        if (device != "None")
-            return;
-
-        foreach (var c in Object.FindObjectsByType<Camera>(FindObjectsInactive.Include))
-        {
-            if (c != null && c.isActiveAndEnabled)
-                return;
-        }
-
-        var existing = GameObject.Find(DesktopFallbackCameraName);
-        var go = existing != null ? existing : new GameObject(DesktopFallbackCameraName);
-        go.tag = "MainCamera";
-        if (go.GetComponent<Camera>() == null)
-            go.AddComponent<Camera>();
-        if (go.GetComponent<AudioListener>() == null)
-            go.AddComponent<AudioListener>();
-        var cam = go.GetComponent<Camera>();
-        cam.enabled = true;
-        go.transform.SetPositionAndRotation(new Vector3(0f, 1.65f, 0f), Quaternion.Euler(5f, 0f, 0f));
 #endif
     }
 

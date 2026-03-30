@@ -127,17 +127,17 @@ PrefabInstance:
     - target: {fileID: 6605414175879866589, guid: 37d6f3449994d7d45bbd24d84c2c6626,
         type: 3}
       propertyPath: m_LocalPosition.x
-      value: -2.36
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6605414175879866589, guid: 37d6f3449994d7d45bbd24d84c2c6626,
         type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.54
+      value: 1.65
       objectReference: {fileID: 0}
     - target: {fileID: 6605414175879866589, guid: 37d6f3449994d7d45bbd24d84c2c6626,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: -5.841
+      value: 24
       objectReference: {fileID: 0}
     - target: {fileID: 6605414175879866589, guid: 37d6f3449994d7d45bbd24d84c2c6626,
         type: 3}
@@ -192,11 +192,6 @@ PrefabInstance:
       propertyPath: SongPreview
       value: 
       objectReference: {fileID: 770543026}
-    - target: {fileID: 1110868499932496828, guid: 37d6f3449994d7d45bbd24d84c2c6626,
-        type: 3}
-      propertyPath: m_Text
-      value: v0.1.1-dev by dev.play.repeat
-      objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 37d6f3449994d7d45bbd24d84c2c6626, type: 3}
 --- !u!1 &770543025 stripped

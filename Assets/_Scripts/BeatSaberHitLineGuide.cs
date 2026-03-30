@@ -18,7 +18,7 @@ public class BeatSaberHitLineGuide : MonoBehaviour
     public Vector3 planeCenterOffsetFromAnchor = new Vector3(-15.05f, 0.66f, 0f);
 
     [Tooltip("Slide the whole plane along the track direction (anchor.forward). Negative moves the plane toward the player / platform (lines should meet the box here).")]
-    public float planeAdvanceAlongLane = -4.65f;
+    public float planeAdvanceAlongLane = -1.15f;
 
     [Tooltip("After anchor math, re-base the plane on Spawner X/Y so the cyan frame is centered on the play space (matches the converging lane lines).")]
     public bool synchronizePlaneWithSpawner = true;

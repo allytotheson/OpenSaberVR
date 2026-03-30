@@ -627,7 +627,6 @@ GameObject:
   - component: {fileID: 9037669480480475048}
   - component: {fileID: 9223354350837303823}
   - component: {fileID: 4053580766930052700}
-  - component: {fileID: 460059149}
   - component: {fileID: 8871409089122566221}
   - component: {fileID: 1533566239}
   m_Layer: 5
@@ -645,7 +644,7 @@ RectTransform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 460059148}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 13.69}
+  m_LocalPosition: {x: 0, y: 0, z: -4.25}
   m_LocalScale: {x: 0.008111675, y: 0.008111675, z: 0.008111675}
   m_Children:
   - {fileID: 3965564027141540227}
@@ -664,7 +663,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 2.8739, y: 2.42}
+  m_AnchoredPosition: {x: 0, y: 0.25}
   m_SizeDelta: {x: 1687.19, y: 910}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!223 &9037669480480475048
@@ -727,20 +726,6 @@ MonoBehaviour:
   m_BlockingMask:
     serializedVersion: 2
     m_Bits: 4294967295
---- !u!114 &460059149
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 460059148}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1518a5e598c7da244bc4850d3ae63354, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  clickOnPointerCollision: 0
-  autoActivateWithinDistance: 0
 --- !u!114 &8871409089122566221
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1426,17 +1411,17 @@ Canvas:
   m_GameObject: {fileID: 1169934543}
   m_Enabled: 1
   serializedVersion: 3
-  m_RenderMode: 0
+  m_RenderMode: 2
   m_Camera: {fileID: 0}
   m_PlaneDistance: 100
   m_PixelPerfect: 0
   m_ReceivesEvents: 1
-  m_OverrideSorting: 0
+  m_OverrideSorting: 1
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_AdditionalShaderChannelsFlag: 0
   m_SortingLayerID: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 2
   m_TargetDisplay: 0
 --- !u!114 &1169934546
 MonoBehaviour:
@@ -2700,7 +2685,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &3965564027141540227
 RectTransform:
   m_ObjectHideFlags: 0
@@ -2761,7 +2746,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: v0.1-dev by dev.play.repeat
+  m_Text: 
 --- !u!1 &1359979013465415846
 GameObject:
   m_ObjectHideFlags: 0
@@ -3228,7 +3213,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3693972839490355324}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -2.36, y: 0.54, z: -4.36}
+  m_LocalPosition: {x: 0, y: 1.65, z: 24}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 460059150}
@@ -3832,7 +3817,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 8871409089122566221}
-        m_MethodName: AreYouSure
+        m_MethodName: ExitApplication
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}

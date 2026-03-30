@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
@@ -228,6 +228,16 @@ public class MainMenu : MonoBehaviour
 
     public void Yes()
     {
+        ExitApplication();
+    }
+
+    /// <summary>Quit immediately (no confirmation). Used by Exit and by legacy Yes on the optional panel.</summary>
+    public void ExitApplication()
+    {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
         Application.Quit();
+#endif
     }
 }

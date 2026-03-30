@@ -50,6 +50,7 @@ public sealed class GameplaySingleAudioListener : MonoBehaviour
 
     public static void Enforce()
     {
+        GameplayCameraEnsurer.Ensure();
         AudioListener keep = ResolvePreferredListener();
         if (keep == null)
             return;
@@ -74,40 +75,11 @@ public sealed class GameplaySingleAudioListener : MonoBehaviour
 
     static AudioListener ResolvePreferredListener()
     {
-        Camera cam = null;
-        Camera anyActive = null;
-        foreach (var c in Object.FindObjectsByType<Camera>(FindObjectsInactive.Include))
+        if (GameplayCameraEnsurer.TryGetPreferredCamera(out Camera cam))
         {
-            if (c == null || !c.isActiveAndEnabled)
-                continue;
-            if (anyActive == null)
-                anyActive = c;
-            if (c.gameObject.name == "Camera (eye)")
-            {
-                cam = c;
-                break;
-            }
-        }
-        if (cam == null && Camera.main != null && Camera.main.isActiveAndEnabled)
-            cam = Camera.main;
-        if (cam == null)
-            cam = anyActive;
-
-        var camGo = cam != null ? cam.gameObject : null;
-        if (cam != null && cam.isActiveAndEnabled)
-        {
-            var al = FindListenerOnOrNearCamera(camGo);
+            var al = FindListenerOnOrNearCamera(cam.gameObject);
             if (al == null)
                 al = cam.gameObject.AddComponent<AudioListener>();
-            return al;
-        }
-
-        var main = Camera.main;
-        if (main != null && main.isActiveAndEnabled)
-        {
-            var al = FindListenerOnOrNearCamera(main.gameObject);
-            if (al == null)
-                al = main.gameObject.AddComponent<AudioListener>();
             return al;
         }
 
