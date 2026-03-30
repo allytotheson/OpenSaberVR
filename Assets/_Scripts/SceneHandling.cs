@@ -88,4 +88,34 @@ public class SceneHandling : MonoBehaviour
         var scene = SceneManager.GetSceneByName(sceneName);
         return scene.name != null;
     }
+
+    /// <summary>Unloads <c>OpenSaber</c>, reloads <c>Menu</c> additively, stops gameplay audio, restores menu UI.</summary>
+    public void ReturnToMenuFromGameplay()
+    {
+        StartCoroutine(ReturnToMenuFromGameplayRoutine());
+    }
+
+    IEnumerator ReturnToMenuFromGameplayRoutine()
+    {
+        var spawner = FindAnyObjectByType<NotesSpawner>();
+        if (spawner != null)
+        {
+            spawner.enabled = false;
+            var audio = spawner.GetComponent<AudioSource>();
+            if (audio != null)
+                audio.Stop();
+        }
+
+        if (IsSceneLoaded("OpenSaber"))
+            yield return UnloadScene("OpenSaber");
+
+        if (!IsSceneLoaded("Menu"))
+            yield return LoadScene("Menu", LoadSceneMode.Additive);
+
+        MenuSceneLoaded();
+
+        var mainMenu = FindAnyObjectByType<MainMenu>();
+        if (mainMenu != null)
+            mainMenu.RestoreUiAfterLeavingGameplay();
+    }
 }

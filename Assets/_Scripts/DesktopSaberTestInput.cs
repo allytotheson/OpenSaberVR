@@ -1,19 +1,27 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Desktop / keyboard saber driving: auto-align at the hit plane, optional jitter, Z/X slashes.
+/// Desktop / keyboard saber driving: auto-align at the hit plane, optional jitter, Z/X/Space slashes.
 /// <see cref="alignSaberRotationToBlockArrow"/> matches block cut direction; turn off for a fixed side-hold pose.
 /// </summary>
 [DefaultExecutionOrder(60)]
+[DisallowMultipleComponent]
 public class DesktopSaberTestInput : MonoBehaviour
 {
+    /// <summary>Fired when Z/comma triggers a left-hand desktop slash pulse (not auto-align micro-pulses).</summary>
+    public static event System.Action LeftKeyboardSlashPressed;
+
+    /// <summary>Fired when X/period triggers a right-hand desktop slash pulse.</summary>
+    public static event System.Action RightKeyboardSlashPressed;
+
     [Header("Drive source")]
-    [Tooltip("If false (default): keyboard + auto-align always drive sabers when this script runs. If true: valid UDP IMU replaces keyboard driving (slash keys still work).")]
+    [Tooltip("If false (default): keyboard + auto-align always drive sabers when this script runs. If true: valid UDP IMU replaces keyboard hand motion; Z/X/Space slash pulses still apply.")]
     public bool preferUdpImuWhenValid = false;
 
     [Header("Auto-align")]
     [Tooltip("Blend note world position with camera hand anchors so sabers stay in frame.")]
-    [Range(0f, 1f)] public float alignBlendFromNote = 0.4f;
+    [Range(0f, 1f)] public float alignBlendFromNote = 0.78f;
 
     [Tooltip("When align rotation to block is off: how much the block steers saber yaw/pitch/roll. 0 = fixed human side-hold pose.")]
     [Range(0f, 1f)] public float noteRotationBlend = 0f;
@@ -34,8 +42,8 @@ public class DesktopSaberTestInput : MonoBehaviour
     [Range(15f, 75f)] public float slashDiagonalDegrees = 45f;
 
     [Tooltip("Offset from camera (local space): wider X = more 'held out to the side'.")]
-    public Vector3 leftHandLocal = new Vector3(-0.54f, -0.26f, 0.92f);
-    public Vector3 rightHandLocal = new Vector3(0.54f, -0.26f, 0.92f);
+    public Vector3 leftHandLocal = new Vector3(-0.48f, -0.08f, 0.78f);
+    public Vector3 rightHandLocal = new Vector3(0.48f, -0.08f, 0.78f);
 
     [Tooltip("Push aligned point slightly toward camera from the block.")]
     public float pullTowardCameraFromBlock = 0.26f;
@@ -53,8 +61,21 @@ public class DesktopSaberTestInput : MonoBehaviour
     [Tooltip("Optional: custom alignment (e.g. future RPi-fused targets). If null, uses SaberAlignmentQueries.")]
     public MonoBehaviour alignmentProviderBehaviour;
 
+    [Header("Desktop hits")]
+    [Tooltip("Brief swing pulses when a matching note is near the hit plane so cuts register without mashing Z/X.")]
+    public bool autoPulseSwingNearNote = true;
+
+    [Tooltip("Minimum seconds between auto pulses per hand.")]
+    public float autoPulseMinInterval = 0.2f;
+
+    [Header("Keyboard slash")]
+    [Tooltip("How long the desktop swing gate stays open after a key press (for DemonHitDetector).")]
+    public float keyboardSlashPulseSeconds = 0.42f;
+
     private float _noiseSeedLeft;
     private float _noiseSeedRight;
+    private float _nextAutoPulseLeft;
+    private float _nextAutoPulseRight;
 
     void Awake()
     {
@@ -68,11 +89,33 @@ public class DesktopSaberTestInput : MonoBehaviour
         if (!TryResolveSabers(out GameObject left, out GameObject right))
             return;
 
-        if (left != null && ShouldUseKeyboard(left, true) && Input.GetKeyDown(KeyCode.Z))
+        // Slash keys always open SwingDetector's desktop pulse window (do not gate on IMU / ShouldUseKeyboard).
+        if (left != null && (Input.GetKeyDown(KeyCode.Z) || Input.GetKeyDown(KeyCode.Comma)))
+        {
             PulseSwing(left);
+            LeftKeyboardSlashPressed?.Invoke();
+        }
 
-        if (right != null && ShouldUseKeyboard(right, false) && Input.GetKeyDown(KeyCode.X))
+        if (right != null && (Input.GetKeyDown(KeyCode.X) || Input.GetKeyDown(KeyCode.Period)))
+        {
             PulseSwing(right);
+            RightKeyboardSlashPressed?.Invoke();
+        }
+
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            if (left != null)
+            {
+                PulseSwing(left);
+                LeftKeyboardSlashPressed?.Invoke();
+            }
+
+            if (right != null)
+            {
+                PulseSwing(right);
+                RightKeyboardSlashPressed?.Invoke();
+            }
+        }
     }
 
     void LateUpdate()
@@ -87,9 +130,9 @@ public class DesktopSaberTestInput : MonoBehaviour
         if (cam == null)
             return;
 
-        bool autoAlign = autoAlignSabersToNotes;
-        if (DeveloperGameplayMode.Enabled)
-            autoAlign = GameplayDebugHud.AutoAlignSabersToNotes;
+        bool autoAlign = DeveloperGameplayMode.Enabled
+            ? GameplayDebugHud.AutoAlignSabersToNotes
+            : autoAlignSabersToNotes;
 
         Vector3 flatF = cam.forward; flatF.y = 0f;
         if (flatF.sqrMagnitude < 0.01f) flatF = Vector3.forward;
@@ -103,11 +146,14 @@ public class DesktopSaberTestInput : MonoBehaviour
             ApplyHand(right, false, cam, flatF, flatR, autoAlign);
     }
 
-    private static void PulseSwing(GameObject saber)
+    void PulseSwing(GameObject saberHandRoot)
     {
-        var swing = saber.GetComponent<SwingDetector>();
-        if (swing == null) swing = saber.GetComponentInChildren<SwingDetector>();
-        swing?.PulseTestSwing(0.24f);
+        var swing = saberHandRoot.GetComponent<SwingDetector>();
+        if (swing == null) swing = saberHandRoot.GetComponentInChildren<SwingDetector>();
+        if (swing == null)
+            return;
+
+        swing.PulseTestSwing(keyboardSlashPulseSeconds);
     }
 
     private bool ShouldUseKeyboard(GameObject saber, bool isLeft)
@@ -171,6 +217,23 @@ public class DesktopSaberTestInput : MonoBehaviour
                 targetPos = Vector3.Lerp(anchor, aligned, blend);
                 float rotBlend = alignSaberRotationToBlockArrow ? 1f : noteRotationBlend;
                 targetRot = Quaternion.Slerp(humanHold, noteRot, rotBlend);
+
+                if (autoPulseSwingNearNote && swing != null)
+                {
+                    float along = BeatSaberHitLineGuide.SignedDistanceToGameplayHitPlane(notePos);
+                    if (along > -0.42f && along < 0.2f)
+                    {
+                        float next = isLeft ? _nextAutoPulseLeft : _nextAutoPulseRight;
+                        if (Time.time >= next)
+                        {
+                            swing.PulseTestSwing(0.36f);
+                            if (isLeft)
+                                _nextAutoPulseLeft = Time.time + autoPulseMinInterval;
+                            else
+                                _nextAutoPulseRight = Time.time + autoPulseMinInterval;
+                        }
+                    }
+                }
             }
 
             float seed = isLeft ? _noiseSeedLeft : _noiseSeedRight;
@@ -270,7 +333,7 @@ public class DesktopSaberTestInput : MonoBehaviour
         return cam.right * nx + cam.up * ny + cam.forward * nz * 0.35f;
     }
 
-    private static bool TryResolveSabers(out GameObject left, out GameObject right)
+    public static bool TryResolveSabers(out GameObject left, out GameObject right)
     {
         left = null;
         right = null;
@@ -296,6 +359,33 @@ public class DesktopSaberTestInput : MonoBehaviour
                     right = hand.gameObject;
             }
         }
+
+        if (left == null && right == null)
+        {
+            var parents = new List<Transform>();
+            foreach (var slice in UnityEngine.Object.FindObjectsByType<Slice>(FindObjectsInactive.Include))
+            {
+                Transform p = slice.transform.parent;
+                if (p == null) continue;
+                bool dup = false;
+                foreach (var q in parents)
+                {
+                    if (q == p) { dup = true; break; }
+                }
+                if (!dup) parents.Add(p);
+            }
+            if (parents.Count >= 2)
+            {
+                parents.Sort((a, b) => a.position.x.CompareTo(b.position.x));
+                left = parents[0].gameObject;
+                right = parents[parents.Count - 1].gameObject;
+            }
+            else if (parents.Count == 1)
+            {
+                left = parents[0].gameObject;
+            }
+        }
+
         return left != null || right != null;
     }
 }

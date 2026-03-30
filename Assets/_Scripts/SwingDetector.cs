@@ -6,6 +6,7 @@ using UnityEngine;
 /// Used by DemonHitDetector to only destroy demons during active swings.
 /// </summary>
 [DefaultExecutionOrder(-20)]
+[DisallowMultipleComponent]
 public class SwingDetector : MonoBehaviour
 {
     [Header("Velocity Threshold")]

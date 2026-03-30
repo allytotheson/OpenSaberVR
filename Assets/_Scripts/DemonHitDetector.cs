@@ -2,10 +2,11 @@ using UnityEngine;
 
 /// <summary>
 /// Destroys demons during active swings. Runs in <see cref="LateUpdate"/> so saber moves (keyboard / auto-track)
-/// and <see cref="DemonHandling"/> note motion apply first. Hits require overlap/rays <em>and</em> the note’s
-/// collider bounds to actually reach the same infinite plane as the cyan frame (leading edge at the line, not just center near it).
+/// and <see cref="DemonHandling"/> note motion apply first. Overlap/rays also use the hit plane; optional trigger
+/// sphere (requires kinematic Rigidbody on blade + note) can register hits on contact while swinging.
 /// </summary>
 [DefaultExecutionOrder(300)]
+[DisallowMultipleComponent]
 public class DemonHitDetector : MonoBehaviour
 {
     [Tooltip("Must include layers where note colliders live (Default is typical).")]
@@ -32,10 +33,26 @@ public class DemonHitDetector : MonoBehaviour
     [Tooltip("During Z/X keyboard pulse, use this leading cap instead (more lenient).")]
     public float hitLeadingMaxSignedDuringPulse = 0.12f;
 
+    [Tooltip("Extra multiplier on depth half-window during keyboard pulse (notes on RedLayer/BlueLayer vs strict plane).")]
+    public float keyboardPulseDepthWindowExtraMul = 2.1f;
+
+    [Header("Trigger contact hits")]
+    [Tooltip("Sphere trigger on the blade + kinematic Rigidbody; notes need a kinematic Rigidbody (see DemonHandling).")]
+    public bool enableTriggerHitPass = true;
+
+    [Tooltip("If true, trigger hits do not require the strict cyan-plane slab (overlap path still does).")]
+    public bool triggerHitsSkipPlaneCheck = true;
+
+    [Tooltip("World-space radius for the hit trigger (centered on the Slice).")]
+    public float triggerHitRadius = 1.35f;
+
+    public Vector3 triggerHitCenter = Vector3.zero;
+
     private SwingDetector swingDetector;
     private Slice slicer;
     private ScoreManager scoreManager;
     private Vector3 previousPos;
+    private SphereCollider _hitTrigger;
 
     private static readonly Vector3[] LocalProbeDirs =
     {
@@ -47,6 +64,13 @@ public class DemonHitDetector : MonoBehaviour
         if (layer.value == 0)
             layer = Physics.DefaultRaycastLayers;
         rayLength = Mathf.Max(rayLength, 6f);
+        // Notes use dedicated layers (e.g. RedLayer / BlueLayer); OR them in so overlap/raycasts see them.
+        int noteLayers = LayerMask.GetMask("RedLayer", "BlueLayer");
+        if (noteLayers != 0)
+            layer |= noteLayers;
+
+        if (enableTriggerHitPass)
+            EnsureBladeRigidbodyAndHitTrigger();
     }
 
     void Start()
@@ -94,6 +118,67 @@ public class DemonHitDetector : MonoBehaviour
         if (swingDetector != null && swingDetector.IsSwinging)
             DrawDebugSwingProbe();
 #endif
+    }
+
+    void OnTriggerStay(Collider other)
+    {
+        if (!enableTriggerHitPass || other == null)
+            return;
+        if (swingDetector == null || !swingDetector.IsSwinging)
+            return;
+        if (!IsDemon(other.transform))
+            return;
+        TryHitFromTriggerContact(other);
+    }
+
+    void EnsureBladeRigidbodyAndHitTrigger()
+    {
+        if (GetComponent<Rigidbody>() == null)
+        {
+            var rb = gameObject.AddComponent<Rigidbody>();
+            rb.isKinematic = true;
+            rb.useGravity = false;
+            rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+        }
+
+        _hitTrigger = null;
+        foreach (var sc in GetComponents<SphereCollider>())
+        {
+            if (sc != null && sc.isTrigger)
+            {
+                _hitTrigger = sc;
+                break;
+            }
+        }
+
+        if (_hitTrigger == null)
+        {
+            _hitTrigger = gameObject.AddComponent<SphereCollider>();
+            _hitTrigger.isTrigger = true;
+        }
+
+        _hitTrigger.radius = triggerHitRadius;
+        _hitTrigger.center = triggerHitCenter;
+    }
+
+    void TryHitFromTriggerContact(Collider demonCol)
+    {
+        bool pulse = swingDetector != null && swingDetector.IsKeyboardPulseSwinging;
+        Transform t = demonCol.transform;
+
+        if (triggerHitsSkipPlaneCheck)
+        {
+            if (!CheckCutAngle(t, pulse))
+                return;
+            DestroyDemon(t);
+            return;
+        }
+
+        if (!IsDemonAtHitPlane(t, pulse, out _))
+            return;
+        if (!CheckCutAngle(t, pulse))
+            return;
+        DestroyDemon(t);
     }
 
 #if UNITY_EDITOR
@@ -182,8 +267,13 @@ public class DemonHitDetector : MonoBehaviour
     private bool IsDemonAtHitPlane(Transform demonTransform, bool keyboardPulse, out float absSignedDistanceToPlane)
     {
         absSignedDistanceToPlane = float.MaxValue;
-        float halfW = hitPlaneDepthHalfWindow * (keyboardPulse ? hitPlaneDepthHalfWindowPulseScale : 1f);
-        float leadCap = keyboardPulse ? hitLeadingMaxSignedDuringPulse : hitLeadingMaxSigned;
+        float pulseScale = keyboardPulse
+            ? hitPlaneDepthHalfWindowPulseScale * Mathf.Max(1f, keyboardPulseDepthWindowExtraMul)
+            : 1f;
+        float halfW = hitPlaneDepthHalfWindow * pulseScale;
+        float leadCap = keyboardPulse
+            ? Mathf.Max(hitLeadingMaxSignedDuringPulse, 0.28f)
+            : hitLeadingMaxSigned;
 
         var dh = demonTransform.GetComponentInParent<DemonHandling>();
         var root = dh != null ? dh.transform : demonTransform;
@@ -271,10 +361,21 @@ public class DemonHitDetector : MonoBehaviour
 
     private void DestroyDemon(Transform demon)
     {
-        var root = demon.GetComponentInParent<DemonHandling>() != null
-            ? demon.GetComponentInParent<DemonHandling>().transform
-            : demon;
+        var dh = demon.GetComponentInParent<DemonHandling>();
+        if (dh != null && !dh.enabled)
+            return;
+
+        var root = dh != null ? dh.transform : demon;
         var go = root.gameObject;
+
+        if (dh != null)
+            dh.enabled = false;
+
+        foreach (var c in root.GetComponentsInChildren<Collider>())
+        {
+            if (c != null)
+                c.enabled = false;
+        }
 
         if (slicer != null)
         {
@@ -282,8 +383,8 @@ public class DemonHitDetector : MonoBehaviour
             if (cutted != null && cutted.Length > 0)
             {
                 var debris = Instantiate(go);
-                var dh = debris.GetComponent<DemonHandling>();
-                if (dh != null) dh.enabled = false;
+                var debrisDh = debris.GetComponent<DemonHandling>();
+                if (debrisDh != null) debrisDh.enabled = false;
                 var col = debris.GetComponentInChildren<Collider>();
                 if (col != null) col.enabled = false;
                 debris.layer = 0;

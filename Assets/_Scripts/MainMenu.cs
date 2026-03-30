@@ -277,6 +277,12 @@ public class MainMenu : MonoBehaviour
 
     void BackToSongListFromDifficulty()
     {
+        RestoreUiAfterLeavingGameplay();
+    }
+
+    /// <summary>Called when leaving <c>OpenSaber</c> so the player returns to the song browser.</summary>
+    public void RestoreUiAfterLeavingGameplay()
+    {
         if (LevelChooser != null) LevelChooser.SetActive(false);
         if (PanelAreYouSure != null) PanelAreYouSure.SetActive(false);
         if (SongChooser != null) SongChooser.SetActive(true);
@@ -286,8 +292,43 @@ public class MainMenu : MonoBehaviour
             SongPreview.Stop();
         PlayNewPreview = false;
         PreviewAudioClip = null;
+
+        RefreshSongChooserTextsAndCover();
+
         if (Songsettings != null && Songsettings.CurrentSong != null)
             StartCoroutine(PreviewSong(Songsettings.CurrentSong.AudioFilePath));
+    }
+
+    /// <summary>
+    /// After the Menu scene loads again, <see cref="RawImage.texture"/> is a new UI element with no texture (reads as white).
+    /// Rebind the current song row from <see cref="SongSettings"/> and the rebuilt <see cref="LoadSongInfos.AllSongs"/> list.
+    /// </summary>
+    void RefreshSongChooserTextsAndCover()
+    {
+        if (SongInfos == null || Songsettings == null || SongInfos.AllSongs.Count == 0)
+            return;
+
+        int idx = Mathf.Clamp(Songsettings.CurrentSongIndex, 0, SongInfos.AllSongs.Count - 1);
+        Songsettings.CurrentSong = SongInfos.AllSongs[idx];
+        Song song = SongInfos.AllSongs[idx];
+
+        SongInfos.SongName.text = song.Name;
+        SongInfos.Artist.text = song.AuthorName;
+        SongInfos.BPM.text = song.BPM;
+        SongInfos.Levels.text = song.Difficulties.Count.ToString();
+
+        if (SongInfos.Cover == null || string.IsNullOrEmpty(song.CoverImagePath) || !File.Exists(song.CoverImagePath))
+            return;
+
+        var old = SongInfos.Cover.texture;
+        byte[] bytes = File.ReadAllBytes(song.CoverImagePath);
+        var tex = new Texture2D(2, 2);
+        if (tex.LoadImage(bytes))
+        {
+            SongInfos.Cover.texture = tex;
+            if (old != null)
+                Destroy(old);
+        }
     }
 
     private void QuitNow()

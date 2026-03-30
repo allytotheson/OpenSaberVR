@@ -27,7 +27,7 @@ public static class SaberAlignmentQueries
             return false;
 
         Transform spawner = GameObject.Find("Spawner")?.transform;
-        var demons = UnityEngine.Object.FindObjectsByType<DemonHandling>(FindObjectsInactive.Exclude);
+        var demons = UnityEngine.Object.FindObjectsByType<DemonHandling>(FindObjectsInactive.Include);
         if (demons == null || demons.Length == 0)
             return false;
 

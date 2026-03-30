@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -29,13 +30,34 @@ public static class DesktopImportedBladeMount
 
     static void EnsureBladeForHand(GameObject saberHandRoot, bool isLeft, GameObject importedPrefab, NotesSpawner cfg)
     {
-        if (FindBladeChildRecursive(saberHandRoot.transform, ImportedBladeChildName) != null ||
-            FindBladeChildRecursive(saberHandRoot.transform, CapsuleBladeChildName) != null)
+        DeduplicateNamedBladesUnderHand(saberHandRoot.transform, ImportedBladeChildName);
+        DeduplicateNamedBladesUnderHand(saberHandRoot.transform, CapsuleBladeChildName);
+
+        Transform mountEarly = GetBladeMountTransform(saberHandRoot);
+
+        Transform importedExisting = FindBladeChildRecursive(saberHandRoot.transform, ImportedBladeChildName);
+        Transform capsuleExisting = FindBladeChildRecursive(saberHandRoot.transform, CapsuleBladeChildName);
+        if (importedExisting != null && !RendererWorldMaxExtentTooSmall(importedExisting))
+        {
+            SetDesktopBillboardBladeVisible(mountEarly, false);
+            DesktopSaberHandHalo.EnsureAtBladeMount(mountEarly, isLeft);
             return;
+        }
+
+        if (capsuleExisting != null && !RendererWorldMaxExtentTooSmall(capsuleExisting))
+        {
+            SetDesktopBillboardBladeVisible(mountEarly, true);
+            DesktopSaberHandHalo.EnsureAtBladeMount(mountEarly, isLeft);
+            return;
+        }
+        if (importedExisting != null) Object.Destroy(importedExisting.gameObject);
+        if (capsuleExisting != null) Object.Destroy(capsuleExisting.gameObject);
 
         DestroyLegacyDevBlades(saberHandRoot.transform);
 
         Transform mount = GetBladeMountTransform(saberHandRoot);
+
+        Vector3 lossy = mount.lossyScale;
 
         if (importedPrefab != null && cfg.useImportedModelWhenAssigned)
         {
@@ -43,9 +65,18 @@ public static class DesktopImportedBladeMount
             inst.name = ImportedBladeChildName;
             inst.transform.localPosition = cfg.importedBladeLocalPosition;
             inst.transform.localRotation = Quaternion.Euler(cfg.importedBladeLocalEuler);
-            inst.transform.localScale = cfg.importedBladeLocalScale;
+            inst.transform.localScale = DivideByLossy(cfg.importedBladeLocalScale, lossy);
+            BoostImportedModelScaleIfNearlyInvisible(inst.transform);
             foreach (var c in inst.GetComponentsInChildren<Collider>(true))
                 Object.Destroy(c);
+            foreach (var rend in inst.GetComponentsInChildren<Renderer>(true))
+            {
+                rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                rend.receiveShadows = false;
+            }
+
+            SetDesktopBillboardBladeVisible(mount, false);
+            DesktopSaberHandHalo.EnsureAtBladeMount(mount, isLeft);
             return;
         }
 
@@ -55,7 +86,7 @@ public static class DesktopImportedBladeMount
         cap.transform.SetParent(mount, false);
         cap.transform.localPosition = cfg.fallbackCapsuleLocalOffset;
         cap.transform.localRotation = Quaternion.identity;
-        cap.transform.localScale = cfg.fallbackCapsuleLocalScale;
+        cap.transform.localScale = DivideByLossy(cfg.fallbackCapsuleLocalScale, lossy);
 
         var r = cap.GetComponent<Renderer>();
         if (r != null)
@@ -72,6 +103,40 @@ public static class DesktopImportedBladeMount
                 r.sharedMaterial = m;
             }
         }
+
+        SetDesktopBillboardBladeVisible(mount, true);
+        DesktopSaberHandHalo.EnsureAtBladeMount(mount, isLeft);
+    }
+
+    static void SetDesktopBillboardBladeVisible(Transform mount, bool visible)
+    {
+        var dbv = mount.GetComponent<DesktopSaberBladeVisual>();
+        if (dbv != null)
+            dbv.enabled = visible;
+    }
+
+    static bool RendererWorldMaxExtentTooSmall(Transform bladeRoot)
+    {
+        var r = bladeRoot.GetComponentInChildren<Renderer>(true);
+        if (r == null)
+            return true;
+        Vector3 e = r.bounds.extents;
+        // FBX models often import in cm/mm — only treat as broken if almost invisible.
+        return Mathf.Max(e.x, Mathf.Max(e.y, e.z)) < 0.006f;
+    }
+
+    static void BoostImportedModelScaleIfNearlyInvisible(Transform bladeRoot)
+    {
+        for (int i = 0; i < 4 && RendererWorldMaxExtentTooSmall(bladeRoot); i++)
+            bladeRoot.localScale *= 3.5f;
+    }
+
+    static Vector3 DivideByLossy(Vector3 localDesired, Vector3 parentLossy)
+    {
+        return new Vector3(
+            localDesired.x / Mathf.Max(Mathf.Abs(parentLossy.x), 0.02f),
+            localDesired.y / Mathf.Max(Mathf.Abs(parentLossy.y), 0.02f),
+            localDesired.z / Mathf.Max(Mathf.Abs(parentLossy.z), 0.02f));
     }
 
     static void DestroyLegacyDevBlades(Transform handRoot)
@@ -82,6 +147,24 @@ public static class DesktopImportedBladeMount
             string n = t.name;
             if (n == "DeveloperCustomBlade" || n == "DeveloperDebugBlade")
                 Object.Destroy(t.gameObject);
+        }
+    }
+
+    static void DeduplicateNamedBladesUnderHand(Transform handRoot, string childName)
+    {
+        bool keep = false;
+        foreach (var t in handRoot.GetComponentsInChildren<Transform>(true))
+        {
+            if (t == null) continue;
+            if (t.name != childName && !t.name.StartsWith(childName + "(", System.StringComparison.Ordinal))
+                continue;
+            if (!keep)
+            {
+                keep = true;
+                continue;
+            }
+
+            Object.Destroy(t.gameObject);
         }
     }
 
@@ -127,6 +210,31 @@ public static class DesktopImportedBladeMount
                     right = hand.gameObject;
             }
         }
+
+        if (left == null && right == null)
+        {
+            var parents = new List<Transform>();
+            foreach (var slice in Object.FindObjectsByType<Slice>(FindObjectsInactive.Include))
+            {
+                Transform p = slice.transform.parent;
+                if (p == null) continue;
+                bool dup = false;
+                foreach (var q in parents)
+                {
+                    if (q == p) { dup = true; break; }
+                }
+                if (!dup) parents.Add(p);
+            }
+            if (parents.Count >= 2)
+            {
+                parents.Sort((a, b) => a.position.x.CompareTo(b.position.x));
+                left = parents[0].gameObject;
+                right = parents[parents.Count - 1].gameObject;
+            }
+            else if (parents.Count == 1)
+                left = parents[0].gameObject;
+        }
+
         return left != null || right != null;
     }
 }

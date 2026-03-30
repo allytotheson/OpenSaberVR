@@ -33,6 +33,7 @@ public class LoadSongInfos : MonoBehaviour
 
     private void OnEnable()
     {
+        AllSongs.Clear();
         string path = Path.Combine(Application.dataPath + "/Playlists");
         if (Directory.Exists(path))
         {

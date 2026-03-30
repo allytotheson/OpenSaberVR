@@ -18,6 +18,9 @@ using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 public class NotesSpawner : MonoBehaviour
 {
@@ -33,10 +36,10 @@ public class NotesSpawner : MonoBehaviour
 
     [Header("Desktop saber mesh (optional)")]
     [FormerlySerializedAs("developerSwordVisualPrefab")]
-    [Tooltip("FBX/GLB for both hands. If empty, tries Resources paths. Menu: OpenSaber → Assign imported sword to Spawner.")]
+    [Tooltip("Optional override for both hands. If empty: Editor loads Rumi sword from Assets/_Models/Lightsabers/.../Sword_01 (1).fbx; player builds need a prefab under a Resources/Lightsabers/ path (see TryLoadImportedSwordFromResources).")]
     public GameObject importedSwordVisualPrefab;
 
-    [Tooltip("If false, always use the colored capsule proxy instead of the imported mesh.")]
+    [Tooltip("If false, always use the red/blue capsule proxy instead of the imported mesh (halos still apply).")]
     public bool useImportedModelWhenAssigned = true;
 
     [Tooltip("Local pose on the Slice transform.")]
@@ -204,6 +207,7 @@ public class NotesSpawner : MonoBehaviour
             gameObject.AddComponent<SaberNearestBlockAlignmentProvider>();
 
         SaberGameplayBootstrap.EnsureAfterGameplayLoad();
+        StartCoroutine(AttachImportedBladesEndOfFrame());
     }
 
     IEnumerator SetupDesktopImportedBladesNextFrame()
@@ -212,9 +216,24 @@ public class NotesSpawner : MonoBehaviour
         DesktopImportedBladeMount.AttachFromNotesSpawner(this);
     }
 
+    IEnumerator AttachImportedBladesEndOfFrame()
+    {
+        yield return null;
+#if UNITY_EDITOR || UNITY_STANDALONE
+        if (!GameplayCameraEnsurer.IsXrDeviceActive())
+            DesktopImportedBladeMount.AttachFromNotesSpawner(this);
+#endif
+    }
+
     /// <summary>Loads a sword model placed under a <c>Resources</c> folder (path without extension).</summary>
     public static GameObject TryLoadImportedSwordFromResources()
     {
+#if UNITY_EDITOR
+        const string editorRumiFbx = "Assets/_Models/Lightsabers/kpop-demon-hunters-rumis-sword/source/Sword_01 (1).fbx";
+        var rumi = AssetDatabase.LoadAssetAtPath<GameObject>(editorRumiFbx);
+        if (rumi != null)
+            return rumi;
+#endif
         string[] candidates =
         {
             "Lightsabers/kpop-demon-hunters-rumis-sword",
@@ -222,6 +241,7 @@ public class NotesSpawner : MonoBehaviour
             "Lightsabers/RumiSwordVisual",
             "Lightsabers/RumisSword",
             "Lightsabers/rumis-sword",
+            "Lightsabers/Sword_01 (1)",
             "kpop-demon-hunters-rumis-sword",
         };
         foreach (var path in candidates)
@@ -407,6 +427,9 @@ public class NotesSpawner : MonoBehaviour
         missDet.missFlyoutColor = saberSideForColor == 0
             ? new Color(0.98f, 0.22f, 0.36f, 1f)
             : new Color(0.2f, 0.58f, 1f, 1f);
+
+        var spawnedSide = demon.AddComponent<SpawnedNoteSaberSide>();
+        spawnedSide.isLeftHandSaber = saberSideForColor == 0;
     }
 
     /// <summary>Fallback to Cubes when Demons is empty (e.g. during migration).</summary>

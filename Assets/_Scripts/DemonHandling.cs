@@ -12,6 +12,8 @@ public class DemonHandling : MonoBehaviour
 
     void Awake()
     {
+        EnsureKinematicRigidbodyForPhysicsQueries();
+
         if (GetComponentInChildren<Collider>(true) != null)
             return;
         var mf = GetComponentInChildren<MeshFilter>();
@@ -23,6 +25,19 @@ public class DemonHandling : MonoBehaviour
         }
         if (GetComponentInChildren<Collider>(true) == null)
             AddBoxFromRendererBounds();
+    }
+
+    /// <summary>
+    /// Notes move by transform; without a Rigidbody, trigger/collision events against sabers are unreliable.
+    /// </summary>
+    void EnsureKinematicRigidbodyForPhysicsQueries()
+    {
+        if (GetComponent<Rigidbody>() != null)
+            return;
+        var rb = gameObject.AddComponent<Rigidbody>();
+        rb.isKinematic = true;
+        rb.useGravity = false;
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
     }
 
     void AddBoxFromRendererBounds()

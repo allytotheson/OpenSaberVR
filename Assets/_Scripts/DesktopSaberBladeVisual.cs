@@ -4,9 +4,10 @@ using UnityEngine;
 /// Visible proxy blade + slash streak. Quads billboard toward the gameplay camera so they are not edge-on/invisible.
 /// </summary>
 [DefaultExecutionOrder(400)]
+[DisallowMultipleComponent]
 public class DesktopSaberBladeVisual : MonoBehaviour
 {
-    public Vector2 bladeSize = new Vector2(0.14f, 1.45f);
+    public Vector2 bladeSize = new Vector2(0.2f, 1.65f);
     public float slashTravel = 0.95f;
     public float slashDuration = 0.14f;
 
@@ -17,6 +18,8 @@ public class DesktopSaberBladeVisual : MonoBehaviour
     private Material slashMaterial;
     private bool wasSwinging;
     private float slashT = 1f;
+    private float _quadScaleCompX = 1f;
+    private float _quadScaleCompY = 1f;
 
     void OnEnable()
     {
@@ -47,19 +50,53 @@ public class DesktopSaberBladeVisual : MonoBehaviour
         if (slashQuad == null)
             slashQuad = BuildQuad("SlashStreak", slashColor, 14, out slashMaterial);
 
+        UpdateScaleCompensation();
         if (bladeQuad != null)
         {
-            bladeQuad.localScale = new Vector3(bladeSize.x, bladeSize.y, 1f);
+            bladeQuad.localScale = new Vector3(_quadScaleCompX, _quadScaleCompY, 1f);
             bladeQuad.localPosition = Vector3.zero;
             bladeQuad.localRotation = Quaternion.identity;
         }
         if (slashQuad != null)
         {
-            // Narrow vertical streak (slash reads as up/down on the blade plane, not depth toward camera).
-            slashQuad.localScale = new Vector3(bladeSize.x * 0.32f, bladeSize.y * 0.52f, 1f);
+            slashQuad.localScale = new Vector3(_quadScaleCompX * 0.32f, _quadScaleCompY * 0.52f, 1f);
             slashQuad.localRotation = Quaternion.identity;
             slashQuad.gameObject.SetActive(false);
         }
+    }
+
+    void DestroyDuplicateProxyChildren()
+    {
+        int pb = 0;
+        int ss = 0;
+        foreach (Transform t in transform.GetComponentsInChildren<Transform>(true))
+        {
+            if (t == null || t == transform)
+                continue;
+            string n = t.name;
+            if (n == "ProxyBlade" || n.StartsWith("ProxyBlade", System.StringComparison.Ordinal))
+            {
+                pb++;
+                if (pb > 1)
+                    Destroy(t.gameObject);
+            }
+            else if (n == "SlashStreak" || n.StartsWith("SlashStreak", System.StringComparison.Ordinal))
+            {
+                ss++;
+                if (ss > 1)
+                    Destroy(t.gameObject);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Slice transforms often use tiny local scale (e.g. 0.05) on the mesh; without this, proxy quads shrink to invisibility.
+    /// </summary>
+    void UpdateScaleCompensation()
+    {
+        Vector3 ls = transform.lossyScale;
+        _quadScaleCompX = bladeSize.x / Mathf.Max(Mathf.Abs(ls.x), 0.02f);
+        _quadScaleCompY = bladeSize.y / Mathf.Max(Mathf.Abs(ls.y), 0.02f);
     }
 
     /// <summary>Slice child may be untagged; walk parents for LeftSaber / RightSaber.</summary>
@@ -117,6 +154,10 @@ public class DesktopSaberBladeVisual : MonoBehaviour
 
     void LateUpdate()
     {
+        UpdateScaleCompensation();
+        if (bladeQuad != null)
+            bladeQuad.localScale = new Vector3(_quadScaleCompX, _quadScaleCompY, 1f);
+
         if (swing != null && slashQuad != null)
         {
             bool sw = swing.IsSwinging;
@@ -131,13 +172,12 @@ public class DesktopSaberBladeVisual : MonoBehaviour
             {
                 slashT += Time.deltaTime / Mathf.Max(0.02f, slashDuration);
                 float u = Mathf.SmoothStep(0f, 1f, slashT);
-                // Vertical sweep on the camera-facing blade plane; slight -localZ sits streak toward the playfield (away from camera).
                 float y = Mathf.Lerp(-slashTravel * 0.42f, slashTravel * 0.42f, u);
                 slashQuad.localPosition = new Vector3(0f, y, -0.012f);
                 float wobble = 1f + 0.35f * Mathf.Sin(u * Mathf.PI);
                 slashQuad.localScale = new Vector3(
-                    bladeSize.x * 0.32f * (1.05f - 0.2f * u),
-                    bladeSize.y * 0.52f * wobble,
+                    _quadScaleCompX * 0.32f * (1.05f - 0.2f * u),
+                    _quadScaleCompY * 0.52f * wobble,
                     1f);
             }
             else if (slashQuad.gameObject.activeSelf && !sw)
