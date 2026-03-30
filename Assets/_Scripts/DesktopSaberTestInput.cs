@@ -261,11 +261,12 @@ public class DesktopSaberTestInput : MonoBehaviour
         {
             foreach (var slice in UnityEngine.Object.FindObjectsByType<Slice>(FindObjectsInactive.Include))
             {
-                var g = slice.gameObject;
-                if (left == null && g.CompareTag("LeftSaber"))
-                    left = g;
-                if (right == null && g.CompareTag("RightSaber"))
-                    right = g;
+                Transform hand = slice.transform.parent;
+                if (hand == null) continue;
+                if (left == null && hand.CompareTag("LeftSaber"))
+                    left = hand.gameObject;
+                if (right == null && hand.CompareTag("RightSaber"))
+                    right = hand.gameObject;
             }
         }
         return left != null || right != null;

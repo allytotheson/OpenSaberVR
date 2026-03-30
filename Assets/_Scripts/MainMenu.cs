@@ -228,11 +228,69 @@ public class MainMenu : MonoBehaviour
 
     public void Yes()
     {
-        ExitApplication();
+        QuitNow();
     }
 
-    /// <summary>Quit immediately (no confirmation). Used by Exit and by legacy Yes on the optional panel.</summary>
+    /// <summary>
+    /// Exit button: from the song list or "no songs" screen → back to title. From difficulty picker → back to song list.
+    /// On the title screen only → no-op. Otherwise quits the app.
+    /// </summary>
     public void ExitApplication()
+    {
+        if (Title != null && Title.activeSelf)
+            return;
+
+        if (SongChooser != null && SongChooser.activeSelf)
+        {
+            BackToTitleScreen();
+            return;
+        }
+
+        if (NoSongsFound != null && NoSongsFound.activeSelf)
+        {
+            BackToTitleScreen();
+            return;
+        }
+
+        if (LevelChooser != null && LevelChooser.activeSelf)
+        {
+            BackToSongListFromDifficulty();
+            return;
+        }
+
+        QuitNow();
+    }
+
+    void BackToTitleScreen()
+    {
+        if (SongPreview != null)
+            SongPreview.Stop();
+        PlayNewPreview = false;
+        PreviewAudioClip = null;
+
+        if (SongChooser != null) SongChooser.SetActive(false);
+        if (LevelChooser != null) LevelChooser.SetActive(false);
+        if (PanelAreYouSure != null) PanelAreYouSure.SetActive(false);
+        if (NoSongsFound != null) NoSongsFound.SetActive(false);
+        if (Title != null) Title.SetActive(true);
+    }
+
+    void BackToSongListFromDifficulty()
+    {
+        if (LevelChooser != null) LevelChooser.SetActive(false);
+        if (PanelAreYouSure != null) PanelAreYouSure.SetActive(false);
+        if (SongChooser != null) SongChooser.SetActive(true);
+        if (Title != null) Title.SetActive(false);
+
+        if (SongPreview != null)
+            SongPreview.Stop();
+        PlayNewPreview = false;
+        PreviewAudioClip = null;
+        if (Songsettings != null && Songsettings.CurrentSong != null)
+            StartCoroutine(PreviewSong(Songsettings.CurrentSong.AudioFilePath));
+    }
+
+    private void QuitNow()
     {
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;

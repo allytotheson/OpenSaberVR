@@ -91,6 +91,10 @@ public class BeatSaberHitLineGuide : MonoBehaviour
         return false;
     }
 
+    /// <summary>
+    /// Signed distance along <see cref="TryGetGameplayHitPlane"/>'s normal (which points toward incoming notes).
+    /// Positive = point is still up-track / before the hit line; negative = past the line toward the player.
+    /// </summary>
     public static float SignedDistanceToGameplayHitPlane(Vector3 worldPoint)
     {
         if (!TryGetGameplayHitPlane(out Vector3 pp, out Vector3 n))

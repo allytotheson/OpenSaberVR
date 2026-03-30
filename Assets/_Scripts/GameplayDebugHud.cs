@@ -57,8 +57,8 @@ public class GameplayDebugHud : MonoBehaviour
             GUILayout.Label($"Left saber:  {(L != null ? L.name + " @ " + L.transform.position.ToString("F1") : "null")} self={L != null && L.activeSelf} inHierarchy={L != null && L.activeInHierarchy}");
             GUILayout.Label($"Right saber: {(R != null ? R.name + " @ " + R.transform.position.ToString("F1") : "null")} self={R != null && R.activeSelf} inHierarchy={R != null && R.activeInHierarchy}");
 
-            var swingL = L != null ? L.GetComponent<SwingDetector>() : null;
-            var swingR = R != null ? R.GetComponent<SwingDetector>() : null;
+            var swingL = L != null ? L.GetComponentInChildren<SwingDetector>(true) : null;
+            var swingR = R != null ? R.GetComponentInChildren<SwingDetector>(true) : null;
             GUILayout.Label($"Swing L: {(swingL != null && swingL.IsSwinging)}  R: {(swingR != null && swingR.IsSwinging)}  (Z / X)");
 
             float distL = NearestDemonDistance(L != null ? L.transform.position : Vector3.zero);

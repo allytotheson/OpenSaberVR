@@ -178,6 +178,8 @@ public class NotesSpawner : MonoBehaviour
         GameplayDebugHud.EnsureCreated(transform);
         if (FindAnyObjectByType<SaberNearestBlockAlignmentProvider>() == null)
             gameObject.AddComponent<SaberNearestBlockAlignmentProvider>();
+
+        SaberGameplayBootstrap.EnsureAfterGameplayLoad();
     }
 
     private IEnumerator LoadAudio()
