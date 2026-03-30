@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// Desktop / keyboard saber driving: auto-align at the hit plane, optional jitter, Z/X slashes.
-/// <see cref="alignSaberRotationToBlockArrow"/> matches block cut direction for developer mode; turn off for a fixed side-hold pose.
+/// <see cref="alignSaberRotationToBlockArrow"/> matches block cut direction; turn off for a fixed side-hold pose.
 /// </summary>
 [DefaultExecutionOrder(60)]
 public class DesktopSaberTestInput : MonoBehaviour
@@ -18,8 +18,17 @@ public class DesktopSaberTestInput : MonoBehaviour
     [Tooltip("When align rotation to block is off: how much the block steers saber yaw/pitch/roll. 0 = fixed human side-hold pose.")]
     [Range(0f, 1f)] public float noteRotationBlend = 0f;
 
-    [Tooltip("Developer mode: match saber orientation to the block (arrow / cut direction). Turn off for the fixed diagonal side-hold pose.")]
+    [Tooltip("Match saber orientation to the block (arrow / cut direction). Turn off for the fixed diagonal side-hold pose.")]
     public bool alignSaberRotationToBlockArrow = true;
+
+    [Tooltip("When on, hands follow the nearest note at the hit plane (non-VR desktop). Turn off for pure WASD free placement.")]
+    public bool autoAlignSabersToNotes = true;
+
+    [Tooltip("Non-VR desktop: minimum align smoothing (higher = steadier hands).")]
+    public float desktopAlignSmoothing = 22f;
+
+    [Tooltip("Non-VR desktop: disable idle Perlin jitter so blades read clearly.")]
+    public bool suppressDesktopIdleJitter = true;
 
     [Tooltip("Diagonal in the vertical swing plane: 45 ≈ top-to-bottom slash feel vs track.")]
     [Range(15f, 75f)] public float slashDiagonalDegrees = 45f;
@@ -78,7 +87,9 @@ public class DesktopSaberTestInput : MonoBehaviour
         if (cam == null)
             return;
 
-        bool autoAlign = GameplayDebugHud.AutoAlignSabersToNotes;
+        bool autoAlign = autoAlignSabersToNotes;
+        if (DeveloperGameplayMode.Enabled)
+            autoAlign = GameplayDebugHud.AutoAlignSabersToNotes;
 
         Vector3 flatF = cam.forward; flatF.y = 0f;
         if (flatF.sqrMagnitude < 0.01f) flatF = Vector3.forward;
@@ -123,7 +134,18 @@ public class DesktopSaberTestInput : MonoBehaviour
 
         Transform t = saber.transform;
         float dt = Time.deltaTime;
-        float smooth = 1f - Mathf.Exp(-alignSmoothing * dt);
+        bool nonXrDesktop = !GameplayCameraEnsurer.IsXrDeviceActive();
+        float effSmoothing = alignSmoothing;
+        if (nonXrDesktop)
+            effSmoothing = Mathf.Max(effSmoothing, desktopAlignSmoothing);
+        if (DeveloperGameplayMode.Enabled && DeveloperGameplayMode.Instance != null)
+            effSmoothing = Mathf.Max(effSmoothing, DeveloperGameplayMode.Instance.developerAlignSmoothing);
+        float smooth = 1f - Mathf.Exp(-effSmoothing * dt);
+
+        bool calmDesktop = nonXrDesktop && suppressDesktopIdleJitter;
+        if (DeveloperGameplayMode.Enabled && DeveloperGameplayMode.Instance != null &&
+            DeveloperGameplayMode.Instance.suppressSaberIdleJitter)
+            calmDesktop = true;
 
         if (autoAlign)
         {
@@ -143,19 +165,24 @@ public class DesktopSaberTestInput : MonoBehaviour
                     towardCam = -cam.forward;
 
                 Vector3 aligned = noteOnPlane + towardCam * pullTowardCameraFromBlock;
-                targetPos = Vector3.Lerp(anchor, aligned, alignBlendFromNote);
+                float blend = alignBlendFromNote;
+                if (nonXrDesktop)
+                    blend = Mathf.Clamp01(Mathf.Max(blend, 0.52f));
+                targetPos = Vector3.Lerp(anchor, aligned, blend);
                 float rotBlend = alignSaberRotationToBlockArrow ? 1f : noteRotationBlend;
                 targetRot = Quaternion.Slerp(humanHold, noteRot, rotBlend);
             }
 
             float seed = isLeft ? _noiseSeedLeft : _noiseSeedRight;
+            float posJitScale = calmDesktop ? 0f : 1f;
+            float rotJitScale = calmDesktop ? 0f : 1f;
             Vector3 j = JitterOffset(cam, seed);
-            targetPos += j * jitterAmplitude;
+            targetPos += j * (jitterAmplitude * posJitScale);
 
             targetRot = targetRot * Quaternion.Euler(
-                (Mathf.PerlinNoise(seed, Time.time * jitterFrequency) - 0.5f) * 2f * rotationJitterDegrees,
-                (Mathf.PerlinNoise(Time.time * jitterFrequency, seed) - 0.5f) * 2f * rotationJitterDegrees,
-                (Mathf.PerlinNoise(seed + 2f, Time.time * jitterFrequency * 0.9f) - 0.5f) * 2f * rotationJitterDegrees);
+                (Mathf.PerlinNoise(seed, Time.time * jitterFrequency) - 0.5f) * 2f * rotationJitterDegrees * rotJitScale,
+                (Mathf.PerlinNoise(Time.time * jitterFrequency, seed) - 0.5f) * 2f * rotationJitterDegrees * rotJitScale,
+                (Mathf.PerlinNoise(seed + 2f, Time.time * jitterFrequency * 0.9f) - 0.5f) * 2f * rotationJitterDegrees * rotJitScale);
 
             t.position = Vector3.Lerp(t.position, targetPos, smooth);
             t.rotation = Quaternion.Slerp(t.rotation, targetRot, smooth);

@@ -38,7 +38,7 @@ public class DesktopSaberBladeVisual : MonoBehaviour
         if (swing == null)
             swing = GetComponentInParent<SwingDetector>();
 
-        bool left = gameObject.CompareTag("LeftSaber");
+        bool left = ResolveIsLeftSaberHand(transform);
         Color bladeColor = left ? new Color(1f, 0.15f, 0.2f, 0.95f) : new Color(0.15f, 0.45f, 1f, 0.95f);
         Color slashColor = left ? new Color(1f, 0.5f, 0.55f, 0.75f) : new Color(0.45f, 0.75f, 1f, 0.75f);
 
@@ -60,6 +60,17 @@ public class DesktopSaberBladeVisual : MonoBehaviour
             slashQuad.localRotation = Quaternion.identity;
             slashQuad.gameObject.SetActive(false);
         }
+    }
+
+    /// <summary>Slice child may be untagged; walk parents for LeftSaber / RightSaber.</summary>
+    static bool ResolveIsLeftSaberHand(Transform t)
+    {
+        for (Transform x = t; x != null; x = x.parent)
+        {
+            if (x.CompareTag("LeftSaber")) return true;
+            if (x.CompareTag("RightSaber")) return false;
+        }
+        return t.CompareTag("LeftSaber");
     }
 
     static Shader ResolveBillboardShader()

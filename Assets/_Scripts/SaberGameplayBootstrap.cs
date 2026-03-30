@@ -57,9 +57,19 @@ public static class SaberGameplayBootstrap
 #if UNITY_EDITOR || UNITY_STANDALONE
         if (!GameplayCameraEnsurer.IsXrDeviceActive())
         {
+            foreach (var s in slices)
+            {
+                if (s == null) continue;
+                if (s.GetComponent<DesktopSaberBladeVisual>() == null)
+                    s.gameObject.AddComponent<DesktopSaberBladeVisual>();
+            }
+
             var spawner = Object.FindAnyObjectByType<NotesSpawner>();
             if (spawner != null && spawner.GetComponent<DesktopSaberTestInput>() == null)
                 spawner.gameObject.AddComponent<DesktopSaberTestInput>();
+
+            if (spawner != null)
+                DesktopImportedBladeMount.AttachFromNotesSpawner(spawner);
         }
 #endif
     }

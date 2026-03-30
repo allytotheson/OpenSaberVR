@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.XR;
@@ -24,6 +25,9 @@ public sealed class GameplayCameraEnsurer : MonoBehaviour
         var go = new GameObject(nameof(GameplayCameraEnsurer));
         DontDestroyOnLoad(go);
         go.AddComponent<GameplayCameraEnsurer>();
+        if (go.GetComponent<DeveloperGameplayMode>() == null)
+            go.AddComponent<DeveloperGameplayMode>();
+        GameplayDebugHud.EnsureCreated(go.transform);
         Ensure();
     }
 
@@ -145,21 +149,18 @@ public sealed class GameplayCameraEnsurer : MonoBehaviour
             return true;
         }
 
-        Camera mainTagged = null;
-        Camera anyNonVr = null;
+        var candidates = new List<Camera>();
         foreach (var c in UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsInactive.Include))
         {
             if (!IsRenderable(c) || IsVrHeadRigCamera(c))
                 continue;
-            if (mainTagged == null && c.CompareTag("MainCamera"))
-                mainTagged = c;
-            if (anyNonVr == null)
-                anyNonVr = c;
+            candidates.Add(c);
         }
 
-        if (mainTagged != null)
+        if (candidates.Count > 0)
         {
-            cam = mainTagged;
+            candidates.Sort(CompareFlatGameplayCameras);
+            cam = candidates[0];
             return true;
         }
 
@@ -169,21 +170,32 @@ public sealed class GameplayCameraEnsurer : MonoBehaviour
             return true;
         }
 
-        if (anyNonVr != null)
-        {
-            cam = anyNonVr;
-            return true;
-        }
-
         return false;
+    }
+
+    /// <summary>Stable ordering so we never alternate between two eligible cameras frame-to-frame.</summary>
+    static int CompareFlatGameplayCameras(Camera a, Camera b)
+    {
+        bool aMain = a.CompareTag("MainCamera");
+        bool bMain = b.CompareTag("MainCamera");
+        if (aMain != bMain)
+            return bMain.CompareTo(aMain);
+
+        bool aNamedPrimary = a.gameObject.name == PrimaryScreenCameraName;
+        bool bNamedPrimary = b.gameObject.name == PrimaryScreenCameraName;
+        if (aNamedPrimary != bNamedPrimary)
+            return bNamedPrimary.CompareTo(aNamedPrimary);
+
+        int nameCmp = string.CompareOrdinal(a.gameObject.name, b.gameObject.name);
+        if (nameCmp != 0)
+            return nameCmp;
+
+        return a.GetEntityId().CompareTo(b.GetEntityId());
     }
 
     static bool TryGetPreferredCameraXr(out Camera cam)
     {
         cam = null;
-        Camera mainTagged = null;
-        Camera anyRenderable = null;
-
         foreach (var c in UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsInactive.Include))
         {
             if (!IsRenderable(c))
@@ -193,15 +205,20 @@ public sealed class GameplayCameraEnsurer : MonoBehaviour
                 cam = c;
                 return true;
             }
-            if (mainTagged == null && c.CompareTag("MainCamera"))
-                mainTagged = c;
-            if (anyRenderable == null)
-                anyRenderable = c;
         }
 
-        if (mainTagged != null)
+        var candidates = new List<Camera>();
+        foreach (var c in UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsInactive.Include))
         {
-            cam = mainTagged;
+            if (!IsRenderable(c))
+                continue;
+            candidates.Add(c);
+        }
+
+        if (candidates.Count > 0)
+        {
+            candidates.Sort(CompareXrFallbackCameras);
+            cam = candidates[0];
             return true;
         }
 
@@ -211,13 +228,19 @@ public sealed class GameplayCameraEnsurer : MonoBehaviour
             return true;
         }
 
-        if (anyRenderable != null)
-        {
-            cam = anyRenderable;
-            return true;
-        }
-
         return false;
+    }
+
+    static int CompareXrFallbackCameras(Camera a, Camera b)
+    {
+        bool aMain = a.CompareTag("MainCamera");
+        bool bMain = b.CompareTag("MainCamera");
+        if (aMain != bMain)
+            return bMain.CompareTo(aMain);
+        int nameCmp = string.CompareOrdinal(a.gameObject.name, b.gameObject.name);
+        if (nameCmp != 0)
+            return nameCmp;
+        return a.GetEntityId().CompareTo(b.GetEntityId());
     }
 
     static bool HasRenderableCamera()

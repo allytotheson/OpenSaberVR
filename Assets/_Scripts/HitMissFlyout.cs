@@ -78,7 +78,15 @@ public class HitMissFlyout : MonoBehaviour
 
     public static void ShowMiss()
     {
-        Show("MISS", new Color(1f, 0.35f, 0.4f, 1f));
+        ShowMiss(new Color(1f, 0.35f, 0.4f, 1f));
+    }
+
+    /// <summary>Miss text tinted like the note (Beat Saber: type 0 red, type 1 blue).</summary>
+    public static void ShowMiss(Color noteColor)
+    {
+        Color c = noteColor;
+        c.a = 1f;
+        Show("MISS", c);
     }
 
     public static void Show(string message, Color color)

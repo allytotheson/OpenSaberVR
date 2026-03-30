@@ -50,7 +50,9 @@ public sealed class GameplaySingleAudioListener : MonoBehaviour
 
     public static void Enforce()
     {
-        GameplayCameraEnsurer.Ensure();
+        // Do not call GameplayCameraEnsurer.Ensure() here — Ensure() notifies DesktopPlayerViewRig.ApplyIfNeeded(),
+        // which resets the camera base pose. This runs every N frames in LateUpdate (after the rig) and caused
+        // periodic zoom / “flicker”. Scene loads still run Ensure() via GameplayCameraEnsurer itself.
         AudioListener keep = ResolvePreferredListener();
         if (keep == null)
             return;

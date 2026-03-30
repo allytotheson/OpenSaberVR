@@ -2,8 +2,8 @@ using UnityEngine;
 
 /// <summary>
 /// Destroys demons during active swings. Runs in <see cref="LateUpdate"/> so saber moves (keyboard / auto-track)
-/// and <see cref="DemonHandling"/> note motion apply first. Hits require overlap/rays <em>and</em> the demon center
-/// within a narrow band of the <see cref="BeatSaberHitLineGuide"/> plane (same depth as the cyan frame).
+/// and <see cref="DemonHandling"/> note motion apply first. Hits require overlap/rays <em>and</em> the note’s
+/// collider bounds to actually reach the same infinite plane as the cyan frame (leading edge at the line, not just center near it).
 /// </summary>
 [DefaultExecutionOrder(300)]
 public class DemonHitDetector : MonoBehaviour
@@ -25,6 +25,12 @@ public class DemonHitDetector : MonoBehaviour
 
     [Tooltip("Widens the depth window slightly during Z/X pulse (still must intersect the plane band).")]
     public float hitPlaneDepthHalfWindowPulseScale = 1.45f;
+
+    [Tooltip("Leading AABB corner (toward player) signed distance must be ≤ this vs the hit plane. 0 = at plane; small positive = a few cm before.")]
+    public float hitLeadingMaxSigned = 0f;
+
+    [Tooltip("During Z/X keyboard pulse, use this leading cap instead (more lenient).")]
+    public float hitLeadingMaxSignedDuringPulse = 0.12f;
 
     private SwingDetector swingDetector;
     private Slice slicer;
@@ -177,9 +183,67 @@ public class DemonHitDetector : MonoBehaviour
     {
         absSignedDistanceToPlane = float.MaxValue;
         float halfW = hitPlaneDepthHalfWindow * (keyboardPulse ? hitPlaneDepthHalfWindowPulseScale : 1f);
-        float signed = BeatSaberHitLineGuide.SignedDistanceToGameplayHitPlane(DemonSampleWorldPoint(demonTransform));
-        absSignedDistanceToPlane = Mathf.Abs(signed);
-        return absSignedDistanceToPlane <= halfW;
+        float leadCap = keyboardPulse ? hitLeadingMaxSignedDuringPulse : hitLeadingMaxSigned;
+
+        var dh = demonTransform.GetComponentInParent<DemonHandling>();
+        var root = dh != null ? dh.transform : demonTransform;
+
+        if (!BeatSaberHitLineGuide.TryGetGameplayHitPlane(out _, out Vector3 nRaw))
+            return false;
+        Vector3 n = nRaw.normalized;
+
+        // Notes move along -root.forward (see DemonHandling). Plane uses n from the lane; min/max corners only
+        // mean “leading” vs “trailing” if motion aligns with -n. Otherwise minS/max were backwards and hits break.
+        Vector3 motion = (-root.forward).normalized;
+        float motionDotN = Vector3.Dot(motion, n);
+
+        if (!BeatSaberHitLineGuide.TryGetNoteVisualSignedExtentsAlongPlane(root, out float minS, out float maxS))
+        {
+            float s = BeatSaberHitLineGuide.SignedDistanceToGameplayHitPlane(DemonSampleWorldPoint(demonTransform));
+            absSignedDistanceToPlane = Mathf.Abs(s);
+            return NoteIntersectsHitSlabScalar(s, halfW, leadCap, motionDotN);
+        }
+
+        absSignedDistanceToPlane = Mathf.Min(Mathf.Abs(minS), Mathf.Abs(maxS));
+        return NoteIntersectsHitSlabBounds(minS, maxS, halfW, leadCap, motionDotN);
+    }
+
+    /// <summary>
+    /// Signed interval [minS,maxS] along plane normal n; motionDotN = dot(note travel dir, n). Travel is -demon.forward.
+    /// </summary>
+    static bool NoteIntersectsHitSlabBounds(float minS, float maxS, float halfW, float leadCap, float motionDotN)
+    {
+        if (minS > halfW || maxS < -halfW)
+            return false;
+
+        if (Mathf.Abs(motionDotN) < 0.12f)
+            return minS <= halfW && maxS >= -halfW;
+
+        if (motionDotN < 0f)
+        {
+            float leadS = minS;
+            if (leadS > leadCap)
+                return false;
+            if (leadS < -halfW)
+                return false;
+            return true;
+        }
+
+        float leadP = maxS;
+        if (leadP > leadCap)
+            return false;
+        if (leadP < -halfW)
+            return false;
+        return true;
+    }
+
+    static bool NoteIntersectsHitSlabScalar(float s, float halfW, float leadCap, float motionDotN)
+    {
+        if (s > halfW || s < -halfW)
+            return false;
+        if (Mathf.Abs(motionDotN) < 0.12f)
+            return true;
+        return s <= leadCap && s >= -halfW;
     }
 
     private bool CheckCutAngle(Transform demon, bool keyboardPulse)
@@ -241,6 +305,9 @@ public class DemonHitDetector : MonoBehaviour
         if (scoreManager != null)
             scoreManager.RegisterHit();
         HitMissFlyout.ShowHit();
+
+        if (DeveloperGameplayMode.Enabled)
+            DeveloperHitFeedback.SpawnBurst(root.position, DeveloperHitFeedback.ApproximateDemonTint(root));
 
         Destroy(go);
     }

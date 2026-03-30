@@ -17,6 +17,7 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
+using UnityEngine.Serialization;
 
 public class NotesSpawner : MonoBehaviour
 {
@@ -29,6 +30,26 @@ public class NotesSpawner : MonoBehaviour
 
     [Tooltip("Cyan frame in front of the camera marking the rough cut plane (desktop testing).")]
     public bool showHitLineGuide = true;
+
+    [Header("Desktop saber mesh (optional)")]
+    [FormerlySerializedAs("developerSwordVisualPrefab")]
+    [Tooltip("FBX/GLB for both hands. If empty, tries Resources paths. Menu: OpenSaber → Assign imported sword to Spawner.")]
+    public GameObject importedSwordVisualPrefab;
+
+    [Tooltip("If false, always use the colored capsule proxy instead of the imported mesh.")]
+    public bool useImportedModelWhenAssigned = true;
+
+    [Tooltip("Local pose on the Slice transform.")]
+    public Vector3 importedBladeLocalPosition = Vector3.zero;
+
+    public Vector3 importedBladeLocalEuler = Vector3.zero;
+
+    [Tooltip("Try 0.01 if the model is huge (cm units).")]
+    public Vector3 importedBladeLocalScale = Vector3.one;
+
+    public Vector3 fallbackCapsuleLocalOffset = new Vector3(0f, 0f, 0.38f);
+
+    public Vector3 fallbackCapsuleLocalScale = new Vector3(0.05f, 0.5f, 0.05f);
 
     private string jsonString;
     private string audioFilePath;
@@ -115,8 +136,12 @@ public class NotesSpawner : MonoBehaviour
 
         audioSource = GetComponent<AudioSource>();
 
+        DeveloperGameplayMode.EnsureOnSpawner(transform);
+        GameplayDebugHud.EnsureCreated(transform);
+
         if (string.IsNullOrEmpty(jsonString))
         {
+            StartCoroutine(SetupDesktopImportedBladesNextFrame());
             Debug.LogError("[NotesSpawner] No beatmap for this song/difficulty (missing info.dat map or wrong SelectedDifficulty).");
             enabled = false;
             return;
@@ -175,11 +200,37 @@ public class NotesSpawner : MonoBehaviour
             guideGo.AddComponent<BeatSaberHitLineGuide>();
         }
 
-        GameplayDebugHud.EnsureCreated(transform);
         if (FindAnyObjectByType<SaberNearestBlockAlignmentProvider>() == null)
             gameObject.AddComponent<SaberNearestBlockAlignmentProvider>();
 
         SaberGameplayBootstrap.EnsureAfterGameplayLoad();
+    }
+
+    IEnumerator SetupDesktopImportedBladesNextFrame()
+    {
+        yield return null;
+        DesktopImportedBladeMount.AttachFromNotesSpawner(this);
+    }
+
+    /// <summary>Loads a sword model placed under a <c>Resources</c> folder (path without extension).</summary>
+    public static GameObject TryLoadImportedSwordFromResources()
+    {
+        string[] candidates =
+        {
+            "Lightsabers/kpop-demon-hunters-rumis-sword",
+            "Lightsabers/kpop_demon_hunters_rumis_sword",
+            "Lightsabers/RumiSwordVisual",
+            "Lightsabers/RumisSword",
+            "Lightsabers/rumis-sword",
+            "kpop-demon-hunters-rumis-sword",
+        };
+        foreach (var path in candidates)
+        {
+            var go = Resources.Load<GameObject>(path);
+            if (go != null)
+                return go;
+        }
+        return null;
     }
 
     private IEnumerator LoadAudio()
@@ -293,6 +344,7 @@ public class NotesSpawner : MonoBehaviour
                 break;
         }
 
+        int saberSideForColor = (int)note.Hand; // 0 = red / left, 1 = blue / right (before nondirection index bump)
         if (note.CutDirection == CutDirection.NONDIRECTION)
         {
             // the nondirection cubes are stored at the index+2 in the array
@@ -349,8 +401,12 @@ public class NotesSpawner : MonoBehaviour
 
         try { if (demon.CompareTag("Untagged")) demon.tag = "Demon"; } catch { /* Add "Demon" tag in Project Settings if needed */ }
 
-        if (demon.GetComponent<NoteMissDetector>() == null)
-            demon.AddComponent<NoteMissDetector>();
+        var missDet = demon.GetComponent<NoteMissDetector>();
+        if (missDet == null)
+            missDet = demon.AddComponent<NoteMissDetector>();
+        missDet.missFlyoutColor = saberSideForColor == 0
+            ? new Color(0.98f, 0.22f, 0.36f, 1f)
+            : new Color(0.2f, 0.58f, 1f, 1f);
     }
 
     /// <summary>Fallback to Cubes when Demons is empty (e.g. during migration).</summary>
