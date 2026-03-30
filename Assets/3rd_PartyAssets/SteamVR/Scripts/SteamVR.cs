@@ -1,10 +1,12 @@
-﻿//======= Copyright (c) Valve Corporation, All rights reserved. ===============
+//======= Copyright (c) Valve Corporation, All rights reserved. ===============
 //
 // Purpose: Access to SteamVR system (hmd) and compositor (distort) interfaces.
 //
 //=============================================================================
 
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.XR;
 using Valve.VR;
 
 public class SteamVR : System.IDisposable
@@ -58,7 +60,19 @@ public class SteamVR : System.IDisposable
 
 	public static bool usingNativeSupport
 	{
-		get { return UnityEngine.XR.XRDevice.GetNativePtr() != System.IntPtr.Zero; }
+		get
+		{
+			var displays = new List<XRDisplaySubsystem>();
+			SubsystemManager.GetSubsystems(displays);
+			foreach (var d in displays)
+			{
+				if (d.running)
+				{
+					return true;
+				}
+			}
+			return false;
+		}
 	}
 
 	static SteamVR CreateInstance()
@@ -300,7 +314,9 @@ public class SteamVR : System.IDisposable
 			case UnityEngine.Rendering.GraphicsDeviceType.OpenGL2:
 #endif
 			case UnityEngine.Rendering.GraphicsDeviceType.OpenGLCore:
+#if !(UNITY_2023_1_OR_NEWER || UNITY_6000_0_OR_NEWER)
 			case UnityEngine.Rendering.GraphicsDeviceType.OpenGLES2:
+#endif
 			case UnityEngine.Rendering.GraphicsDeviceType.OpenGLES3:
 				textureType = ETextureType.OpenGL;
 				break;

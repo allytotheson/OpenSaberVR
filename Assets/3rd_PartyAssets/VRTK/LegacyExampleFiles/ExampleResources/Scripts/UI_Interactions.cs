@@ -1,4 +1,4 @@
-﻿namespace VRTK.Examples
+namespace VRTK.Examples
 {
     using UnityEngine;
     using UnityEngine.EventSystems;
@@ -49,7 +49,7 @@
         {
             yield return null;
 
-            var canvasCount = FindObjectsOfType<Canvas>().Length - EXISTING_CANVAS_COUNT;
+            var canvasCount = FindObjectsByType<Canvas>().Length - EXISTING_CANVAS_COUNT;
             var newCanvasGO = new GameObject("TempCanvas");
             newCanvasGO.layer = 5;
             var canvas = newCanvasGO.AddComponent<Canvas>();

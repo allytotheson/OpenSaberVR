@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -6,6 +6,8 @@ using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
 using VRTK;
+
+#pragma warning disable CS0618 // VRTK: WWW deprecated; UnityWebRequest migration deferred.
 
 [InitializeOnLoad]
 public sealed class VRTK_UpdatePrompt : EditorWindow

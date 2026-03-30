@@ -1,4 +1,4 @@
-﻿// Adaptive Quality|Utilities|90100
+// Adaptive Quality|Utilities|90100
 
 // Adapted from The Lab Renderer's ValveCamera.cs, available at
 // https://github.com/ValveSoftware/the_lab_renderer/blob/ae64c48a8ccbe5406aba1e39b160d4f2f7156c2c/Assets/TheLabRenderer/Scripts/ValveCamera.cs
@@ -311,9 +311,16 @@ namespace VRTK
             Camera.onPreCull += OnCameraPreCull;
 
             hmdDisplayIsOnDesktop = VRTK_SDK_Bridge.IsDisplayOnDesktop();
+#if UNITY_2017_2_OR_NEWER
+            float refreshHz = VRTK_XRCompat.GetDisplayRefreshRate();
+            singleFrameDurationInMilliseconds = refreshHz > 0.0f
+                                                ? 1000.0f / refreshHz
+                                                : DefaultFrameDurationInMilliseconds;
+#else
             singleFrameDurationInMilliseconds = XRDevice.refreshRate > 0.0f
                                                 ? 1000.0f / XRDevice.refreshRate
                                                 : DefaultFrameDurationInMilliseconds;
+#endif
 
             HandleCommandLineArguments();
 

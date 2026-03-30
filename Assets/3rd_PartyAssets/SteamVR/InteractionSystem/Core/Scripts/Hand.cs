@@ -1,4 +1,4 @@
-﻿//======= Copyright (c) Valve Corporation, All rights reserved. ===============
+//======= Copyright (c) Valve Corporation, All rights reserved. ===============
 //
 // Purpose: The hands used by the player in the vr interaction system
 //
@@ -656,7 +656,9 @@ namespace Valve.VR.InteractionSystem
 			inputFocusAction.enabled = true;
 
 			// Stagger updates between hands
+#pragma warning disable CS0618
 			float hoverUpdateBegin = ( ( otherHand != null ) && ( otherHand.GetInstanceID() < GetInstanceID() ) ) ? ( 0.5f * hoverUpdateInterval ) : ( 0.0f );
+#pragma warning restore CS0618
 			InvokeRepeating( "UpdateHovering", hoverUpdateBegin, hoverUpdateInterval );
 			InvokeRepeating( "UpdateDebugText", hoverUpdateBegin, hoverUpdateInterval );
 		}

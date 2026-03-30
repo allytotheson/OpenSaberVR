@@ -1,4 +1,4 @@
-﻿// Shared Methods|Utilities|90060
+// Shared Methods|Utilities|90060
 namespace VRTK
 {
     using UnityEngine;
@@ -332,7 +332,9 @@ namespace VRTK
         /// <returns>The total GPU time utilized last frame as measured by the VR subsystem.</returns>
         public static float GetGPUTimeLastFrame()
         {
-#if UNITY_5_6_OR_NEWER
+#if UNITY_6000_0_OR_NEWER || UNITY_2023_1_OR_NEWER
+            return 0f;
+#elif UNITY_5_6_OR_NEWER
             float gpuTimeLastFrame;
             return (XRStats.TryGetGPUTimeLastFrame(out gpuTimeLastFrame) ? gpuTimeLastFrame : 0f);
 #else

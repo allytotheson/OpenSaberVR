@@ -75,7 +75,7 @@ namespace Valve.VR.InteractionSystem
 				if ( hand.GetStandardInteractionButton() )
 				{
 					Rigidbody rb = GetComponent<Rigidbody>();
-					if ( rb.velocity.magnitude >= catchSpeedThreshold )
+					if ( rb.linearVelocity.magnitude >= catchSpeedThreshold )
 					{
 						hand.AttachObject( gameObject, attachmentFlags, attachmentPoint );
 						showHint = false;
@@ -184,7 +184,7 @@ namespace Valve.VR.InteractionSystem
 			}
 
 			Vector3 r = transform.TransformPoint( rb.centerOfMass ) - position;
-			rb.velocity = velocity + Vector3.Cross( angularVelocity, r );
+			rb.linearVelocity = velocity + Vector3.Cross( angularVelocity, r );
 			rb.angularVelocity = angularVelocity;
 
 			// Make the object travel at the release velocity for the amount

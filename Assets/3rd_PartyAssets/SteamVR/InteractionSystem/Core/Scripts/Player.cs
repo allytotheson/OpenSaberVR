@@ -1,4 +1,4 @@
-﻿//======= Copyright (c) Valve Corporation, All rights reserved. ===============
+//======= Copyright (c) Valve Corporation, All rights reserved. ===============
 //
 // Purpose: Player interface used to query HMD transforms and VR hands
 //
@@ -50,7 +50,7 @@ namespace Valve.VR.InteractionSystem
 			{
 				if ( _instance == null )
 				{
-					_instance = FindObjectOfType<Player>();
+					_instance = FindAnyObjectByType<Player>();
 				}
 				return _instance;
 			}

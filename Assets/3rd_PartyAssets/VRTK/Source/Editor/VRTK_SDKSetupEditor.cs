@@ -441,7 +441,7 @@
             private static void FixOpenAndUnsavedScenes()
             {
 
-                List<VRTK_SDKSetup> setups = Enumerable.Range(0, EditorSceneManager.loadedSceneCount)
+                List<VRTK_SDKSetup> setups = Enumerable.Range(0, SceneManager.loadedSceneCount)
                                                        .SelectMany(sceneIndex => SceneManager.GetSceneAt(sceneIndex).GetRootGameObjects())
                                                        .SelectMany(rootObject => rootObject.GetComponentsInChildren<VRTK_SDKManager>())
                                                        .Select(manager => manager.setups.Where(setup => setup != null).ToArray())

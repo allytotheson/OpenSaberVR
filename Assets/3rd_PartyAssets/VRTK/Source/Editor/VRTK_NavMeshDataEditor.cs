@@ -20,7 +20,7 @@
             {
                 EditorGUI.indentLevel++;
                 int currentAreas = target.validAreas;
-                string[] areas = GameObjectUtility.GetNavMeshAreaNames();
+                string[] areas = UnityEngine.AI.NavMesh.GetAreaNames();
                 for (int i = 0; i < areas.Length; i++)
                 {
                     var selected = (currentAreas & (1 << i)) != 0;

@@ -2,37 +2,49 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Tracks score when demons are destroyed.
-/// Optional UI Text to display current score.
+/// Simple hit/miss counters (+1 per hit, +1 miss count on miss). Optional UI Text.
 /// </summary>
 public class ScoreManager : MonoBehaviour
 {
     [Header("UI (optional)")]
     public Text scoreText;
 
-    private int score;
-    public int Score => score;
+    int _hits;
+    int _misses;
+
+    public int Hits => _hits;
+    public int Misses => _misses;
 
     void Start()
     {
-        score = 0;
+        _hits = 0;
+        _misses = 0;
         UpdateUI();
     }
 
-    public void AddScore(int points)
+    public void RegisterHit()
     {
-        score += points;
+        _hits++;
+        UpdateUI();
+    }
+
+    public void RegisterMiss()
+    {
+        _misses++;
         UpdateUI();
     }
 
     public void ResetScore()
     {
-        score = 0;
+        _hits = 0;
+        _misses = 0;
         UpdateUI();
     }
 
-    private void UpdateUI()
+    void UpdateUI()
     {
-        if (scoreText != null) scoreText.text = score.ToString();
+        if (scoreText == null)
+            return;
+        scoreText.text = $"Hits: {_hits}   Miss: {_misses}";
     }
 }

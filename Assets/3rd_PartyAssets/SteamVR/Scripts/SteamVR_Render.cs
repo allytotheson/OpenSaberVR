@@ -1,4 +1,4 @@
-﻿//======= Copyright (c) Valve Corporation, All rights reserved. ===============
+//======= Copyright (c) Valve Corporation, All rights reserved. ===============
 //
 // Purpose: Handles rendering of all SteamVR_Cameras
 //
@@ -27,7 +27,7 @@ public class SteamVR_Render : MonoBehaviour
 		{
 			if (_instance == null)
 			{
-				_instance = GameObject.FindObjectOfType<SteamVR_Render>();
+				_instance = GameObject.FindAnyObjectByType<SteamVR_Render>();
 
 				if (_instance == null)
 					_instance = new GameObject("[SteamVR]").AddComponent<SteamVR_Render>();

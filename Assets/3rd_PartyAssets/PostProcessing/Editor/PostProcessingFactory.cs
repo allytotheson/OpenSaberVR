@@ -3,6 +3,8 @@ using UnityEngine.PostProcessing;
 using UnityEditor.ProjectWindowCallback;
 using System.IO;
 
+#pragma warning disable CS0618 // Unity Post-processing stack: ProjectWindowUtil / EndNameEditAction legacy APIs.
+
 namespace UnityEditor.PostProcessing
 {
     public class PostProcessingFactory

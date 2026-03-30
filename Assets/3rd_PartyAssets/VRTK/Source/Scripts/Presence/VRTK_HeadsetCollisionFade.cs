@@ -1,4 +1,4 @@
-﻿// Headset Collision Fade|Presence|70030
+// Headset Collision Fade|Presence|70030
 namespace VRTK
 {
     using UnityEngine;
@@ -40,8 +40,8 @@ namespace VRTK
 
         protected virtual void OnEnable()
         {
-            headsetFade = (headsetFade != null ? headsetFade : FindObjectOfType<VRTK_HeadsetFade>());
-            headsetCollision = (headsetCollision != null ? headsetCollision : FindObjectOfType<VRTK_HeadsetCollision>());
+            headsetFade = (headsetFade != null ? headsetFade : FindAnyObjectByType<VRTK_HeadsetFade>());
+            headsetCollision = (headsetCollision != null ? headsetCollision : FindAnyObjectByType<VRTK_HeadsetCollision>());
 
             if (headsetFade == null)
             {

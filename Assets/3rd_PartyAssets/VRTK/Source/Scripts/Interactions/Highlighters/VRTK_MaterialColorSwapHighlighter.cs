@@ -1,6 +1,7 @@
-﻿// Material Colour Swap|Highlighters|40020
+// Material Colour Swap|Highlighters|40020
 namespace VRTK.Highlighters
 {
+#pragma warning disable CS0618 // GetInstanceID — stable string keys for material caches
     using UnityEngine;
     using System.Collections;
     using System.Collections.Generic;
@@ -205,4 +206,5 @@ namespace VRTK.Highlighters
             }
         }
     }
+#pragma warning restore CS0618
 }

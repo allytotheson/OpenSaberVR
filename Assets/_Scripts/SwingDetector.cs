@@ -5,6 +5,7 @@ using UnityEngine;
 /// Saber must exceed minSwingVelocity to count as "swinging".
 /// Used by DemonHitDetector to only destroy demons during active swings.
 /// </summary>
+[DefaultExecutionOrder(-20)]
 public class SwingDetector : MonoBehaviour
 {
     [Header("Velocity Threshold")]
@@ -17,11 +18,23 @@ public class SwingDetector : MonoBehaviour
     [SerializeField] private bool isSwinging;
     [SerializeField] private float lastSwingEndTime;
 
+    private float keyboardTestSwingTimer;
+
     private SaberMotionController motionController;
     private Vector3 lastPosition;
     private Vector3 lastForward;
 
-    public bool IsSwinging => isSwinging;
+    /// <summary>True during motion swing or a short desktop test pulse (see <see cref="PulseTestSwing"/>).</summary>
+    public bool IsSwinging => keyboardTestSwingTimer > 0f || isSwinging;
+
+    /// <summary>Desktop Z/X test swing — used to relax cut-angle checks.</summary>
+    public bool IsKeyboardPulseSwinging => keyboardTestSwingTimer > 0f;
+
+    /// <summary>Desktop / keyboard: treat as an active swing for <paramref name="seconds"/> (for <see cref="DemonHitDetector"/>).</summary>
+    public void PulseTestSwing(float seconds = 0.22f)
+    {
+        keyboardTestSwingTimer = Mathf.Max(keyboardTestSwingTimer, seconds);
+    }
 
     void Start()
     {
@@ -33,6 +46,9 @@ public class SwingDetector : MonoBehaviour
 
     void Update()
     {
+        if (keyboardTestSwingTimer > 0f)
+            keyboardTestSwingTimer -= Time.deltaTime;
+
         float angularVel = motionController != null ? motionController.GetAngularVelocityMagnitude() : 0f;
         Vector3 pos = transform.position;
         Vector3 fwd = transform.forward;

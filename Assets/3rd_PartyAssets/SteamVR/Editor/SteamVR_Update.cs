@@ -1,4 +1,4 @@
-﻿//======= Copyright (c) Valve Corporation, All rights reserved. ===============
+//======= Copyright (c) Valve Corporation, All rights reserved. ===============
 //
 // Purpose: Notify developers when a new version of the plugin is available.
 //
@@ -9,13 +9,16 @@ using UnityEditor;
 using System.IO;
 using System.Text.RegularExpressions;
 
+#pragma warning disable CS0618 // Valve: WWW deprecated; UnityWebRequest migration deferred.
+
 [InitializeOnLoad]
 public class SteamVR_Update : EditorWindow
 {
 	const string currentVersion = "1.2.3";
-	const string versionUrl = "http://media.steampowered.com/apps/steamvr/unitypluginversion.txt";
-	const string notesUrl = "http://media.steampowered.com/apps/steamvr/unityplugin-v{0}.txt";
-	const string pluginUrl = "http://u3d.as/content/valve-corporation/steam-vr-plugin";
+	// Unity 6+ blocks plain HTTP in the editor unless Player Settings allow it — use HTTPS.
+	const string versionUrl = "https://media.steampowered.com/apps/steamvr/unitypluginversion.txt";
+	const string notesUrl = "https://media.steampowered.com/apps/steamvr/unityplugin-v{0}.txt";
+	const string pluginUrl = "https://u3d.as/content/valve-corporation/steam-vr-plugin";
 	const string doNotShowKey = "SteamVR.DoNotShow.v{0}";
 
 	static bool gotVersion = false;
@@ -30,45 +33,69 @@ public class SteamVR_Update : EditorWindow
 
 	static void Update()
 	{
-		if (!gotVersion)
+		try
 		{
-			if (wwwVersion == null)
-				wwwVersion = new WWW(versionUrl);
-
-			if (!wwwVersion.isDone)
-				return;
-
-			if (UrlSuccess(wwwVersion))
-				version = wwwVersion.text;
-
-			wwwVersion = null;
-			gotVersion = true;
-
-			if (ShouldDisplay())
+			if (!gotVersion)
 			{
-				var url = string.Format(notesUrl, version);
-				wwwNotes = new WWW(url);
+				if (wwwVersion == null)
+				{
+					try { wwwVersion = new WWW(versionUrl); }
+					catch (System.InvalidOperationException)
+					{
+						FinishUpdateCheck();
+						return;
+					}
+				}
 
-				window = GetWindow<SteamVR_Update>(true);
-				window.minSize = new Vector2(320, 440);
-				//window.title = "SteamVR";
+				if (!wwwVersion.isDone)
+					return;
+
+				if (UrlSuccess(wwwVersion))
+					version = wwwVersion.text;
+
+				wwwVersion = null;
+				gotVersion = true;
+
+				if (ShouldDisplay())
+				{
+					var url = string.Format(notesUrl, version);
+					try { wwwNotes = new WWW(url); }
+					catch (System.InvalidOperationException)
+					{
+						FinishUpdateCheck();
+						return;
+					}
+
+					window = GetWindow<SteamVR_Update>(true);
+					window.minSize = new Vector2(320, 440);
+					//window.title = "SteamVR";
+				}
+			}
+
+			if (wwwNotes != null)
+			{
+				if (!wwwNotes.isDone)
+					return;
+
+				if (UrlSuccess(wwwNotes))
+					notes = wwwNotes.text;
+
+				wwwNotes = null;
+
+				if (notes != "")
+					window.Repaint();
 			}
 		}
-
-		if (wwwNotes != null)
+		catch (System.InvalidOperationException)
 		{
-			if (!wwwNotes.isDone)
-				return;
-
-			if (UrlSuccess(wwwNotes))
-				notes = wwwNotes.text;
-
-			wwwNotes = null;
-
-			if (notes != "")
-				window.Repaint();
+			// Unity may reject requests (e.g. HTTP blocked); stop polling the editor.
 		}
 
+		FinishUpdateCheck();
+	}
+
+	static void FinishUpdateCheck()
+	{
 		EditorApplication.update -= Update;
 	}
 

@@ -1,8 +1,9 @@
-﻿namespace VRTK
+namespace VRTK
 {
     using System.Collections;
     using System.Linq;
     using System.Reflection;
+    using UnityEngine;
     using UnityEngine.EventSystems;
 
     public class VRTK_EventSystem : EventSystem
@@ -92,7 +93,7 @@
             our own one.
             We therefore update that private reference directly here.
             */
-            foreach (BaseInputModule module in FindObjectsOfType<BaseInputModule>())
+            foreach (BaseInputModule module in FindObjectsByType<BaseInputModule>())
             {
                 BASE_INPUT_MODULE_EVENT_SYSTEM_FIELD_INFO.SetValue(module, eventSystem);
             }

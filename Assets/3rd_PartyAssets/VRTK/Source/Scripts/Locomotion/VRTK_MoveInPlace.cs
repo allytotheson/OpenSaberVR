@@ -1,4 +1,4 @@
-﻿// Move In Place|Locomotion|20110
+// Move In Place|Locomotion|20110
 namespace VRTK
 {
     using UnityEngine;
@@ -195,7 +195,7 @@ namespace VRTK
             movementEngaged = false;
             previousEngageButton = engageButton;
 
-            bodyPhysics = (bodyPhysics != null ? bodyPhysics : FindObjectOfType<VRTK_BodyPhysics>());
+            bodyPhysics = (bodyPhysics != null ? bodyPhysics : FindAnyObjectByType<VRTK_BodyPhysics>());
             controllerLeftHand = VRTK_DeviceFinder.GetControllerLeftHand();
             controllerRightHand = VRTK_DeviceFinder.GetControllerRightHand();
 

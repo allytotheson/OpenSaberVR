@@ -1,4 +1,4 @@
-﻿namespace VRTK.Examples.Utilities
+namespace VRTK.Examples.Utilities
 {
     using UnityEngine;
     using UnityEngine.SceneManagement;
@@ -31,7 +31,7 @@
         {
             if (loadedScene.name == sceneConstructor.name)
             {
-                VRTK_SDKManager sdkManager = FindObjectOfType<VRTK_SDKManager>();
+                VRTK_SDKManager sdkManager = FindAnyObjectByType<VRTK_SDKManager>();
                 sdkManager.gameObject.SetActive(false);
                 sdkManager.scriptAliasLeftController = leftScriptAlias;
                 sdkManager.scriptAliasRightController = rightScriptAlias;

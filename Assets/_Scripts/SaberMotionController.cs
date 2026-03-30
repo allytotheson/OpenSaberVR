@@ -38,7 +38,7 @@ public class SaberMotionController : MonoBehaviour
 
     void Start()
     {
-        if (receiver == null) receiver = FindObjectOfType<UDPSaberReceiver>();
+        if (receiver == null) receiver = FindAnyObjectByType<UDPSaberReceiver>();
         if (saberTransform == null) saberTransform = transform;
         if (playerRoot == null) playerRoot = Camera.main != null ? Camera.main.transform : null;
 

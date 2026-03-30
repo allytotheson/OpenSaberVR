@@ -1,4 +1,4 @@
-﻿// Slingshot Jump|Locomotion|20121
+// Slingshot Jump|Locomotion|20121
 namespace VRTK
 {
     using UnityEngine;
@@ -122,8 +122,8 @@ namespace VRTK
 
         protected virtual void Awake()
         {
-            bodyPhysics = (bodyPhysics != null ? bodyPhysics : FindObjectOfType<VRTK_BodyPhysics>());
-            playerClimb = (playerClimb != null ? playerClimb : FindObjectOfType<VRTK_PlayerClimb>());
+            bodyPhysics = (bodyPhysics != null ? bodyPhysics : FindAnyObjectByType<VRTK_BodyPhysics>());
+            playerClimb = (playerClimb != null ? playerClimb : FindAnyObjectByType<VRTK_PlayerClimb>());
             VRTK_SDKManager.AttemptAddBehaviourToToggleOnLoadedSetupChange(this);
         }
 
@@ -251,7 +251,7 @@ namespace VRTK
 
         protected void InitTeleportListener(bool state)
         {
-            teleporter = (teleporter != null ? teleporter : FindObjectOfType<VRTK_BasicTeleport>());
+            teleporter = (teleporter != null ? teleporter : FindAnyObjectByType<VRTK_BasicTeleport>());
             if (teleporter != null)
             {
                 if (state == true)

@@ -15,6 +15,10 @@ If you are interested in helping/contributing to the project (no matter if you a
 ## Import songs
 Just download any song from BeatSaver or BeastSaber and unzip it to the "OpenSaberVR_data/Playlists" folder. Make sure that each song has its own folder in the Playlists folder. After that run Open Saber VR and the song should be displayed in the menu.
 
+**Playing from the Unity Editor:** unzip songs into `Assets/Playlists` (each song in its own folder with `info.dat`). Open the scene **`Assets/_Scenes/PersistentScene`**, press **Play**. You should see the title UI; click **Songs** to open the library (if the folder is empty you will see the “no songs” message). Pick a song and difficulty to load **OpenSaber** additively. Without a VR headset, the **FallbackCamera_NonVR** is used: in the menu you use the mouse normally; in a level, **hold right mouse** to look around (Esc unlocks the cursor).
+
+Maps with multiple **characteristics** (e.g. **Standard** and **No Arrows**) show separate menu entries like `ExpertPlus (Standard)` and `ExpertPlus (NoArrows)`. The `Playlists/` folder is gitignored (beatmaps stay local). **Beat Sage – Takedown (HUNTR/X)** is installed under `Assets/Playlists/BeatSage_Takedown_HUNTR_X` with all Standard and No Arrows difficulties; **bombs** in the charts are skipped (not supported yet).
+
 
 ## Gameplay
 ![alt text](https://img.itch.zone/aW1hZ2UvNDMyMDUzLzIyNDc2OTMucG5n/original/%2Bx5231.png "")
@@ -29,6 +33,19 @@ After the song finished, just wait for 5 seconds and you will be pushed back to 
  - fully support for the songs from BeastSaber and BeatSaver
  - **UDP Saber Mode**: Play without VR using Pico W controllers sending IMU data over UDP
 
+
+## Desktop testing (keyboard, no Pi)
+
+While UDP has **no valid packet** for a saber, **`DesktopSaberTestInput`** (auto-created on `SceneHandling`) moves that saber with the keyboard and **Pi data takes over** when packets arrive.
+
+| | **Left saber** | **Right saber** |
+|---|----------------|-----------------|
+| Move (flat to camera) | **W A S D** | **I J K L** |
+| Up / down | **R** / **F** | **U** / **O** |
+| Yaw | **Q** / **E** | **,** / **.** |
+| Swing pulse (for hits) | **Z** | **X** |
+
+A **cyan rectangular frame** is drawn in front of the camera when a song starts (`NotesSpawner.showHitLineGuide`) as a rough “cut plane” reference. Tune `BeatSaberHitLineGuide` on the spawned object if it doesn’t line up with your blocks.
 
 ## UDP Saber Setup (Pico W Controllers)
 

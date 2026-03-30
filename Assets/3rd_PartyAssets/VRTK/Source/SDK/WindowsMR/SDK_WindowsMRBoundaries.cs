@@ -1,4 +1,4 @@
-﻿// WindowsMR Boundaries|SDK_WindowsMR|005
+// WindowsMR Boundaries|SDK_WindowsMR|005
 namespace VRTK
 {
     using UnityEngine;
@@ -104,6 +104,9 @@ namespace VRTK
 #if UNITY_2017_2_OR_NEWER
             isDisplayOpaque = HolographicSettings.IsDisplayOpaque;
 #endif
+#if UNITY_6000_0_OR_NEWER
+            // XRDevice.SetTrackingSpaceType was removed; tracking origin is configured by the XR plug-in.
+#else
             if (isDisplayOpaque)
             {
                 // Defaulting coordinate system to RoomScale in immersive headsets.
@@ -116,6 +119,7 @@ namespace VRTK
                 // This puts the origin 0,0,0 at the first place where the user started the application.
                 XRDevice.SetTrackingSpaceType(TrackingSpaceType.Stationary);
             }
+#endif
 
             Transform headsetCamera = VRTK_DeviceFinder.HeadsetCamera();
             if (headsetCamera != null)

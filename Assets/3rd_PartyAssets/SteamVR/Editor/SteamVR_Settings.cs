@@ -1,4 +1,4 @@
-﻿//======= Copyright (c) Valve Corporation, All rights reserved. ===============
+//======= Copyright (c) Valve Corporation, All rights reserved. ===============
 //
 // Purpose: Prompt developers to use settings most compatible with SteamVR.
 //
@@ -7,6 +7,8 @@
 using UnityEngine;
 using UnityEditor;
 using System.IO;
+
+#pragma warning disable CS0618 // Valve: legacy PlayerSettings / VREditor VR APIs; XR Management migration deferred.
 
 [InitializeOnLoad]
 public class SteamVR_Settings : EditorWindow
@@ -108,7 +110,8 @@ public class SteamVR_Settings : EditorWindow
 			//window.title = "SteamVR";
 		}
 
-		if (SteamVR_Preferences.AutoEnableVR)
+		// Unity disallows changing the VR device list while the Editor is in Play mode.
+		if (!EditorApplication.isPlaying && SteamVR_Preferences.AutoEnableVR)
 		{
 			// Switch to native OpenVR support.
 			var updated = false;
@@ -119,7 +122,10 @@ public class SteamVR_Settings : EditorWindow
 				updated = true;
 			}
 
-#if (UNITY_5_4 || UNITY_5_3 || UNITY_5_2 || UNITY_5_1 || UNITY_5_0)
+#if UNITY_6000_0_OR_NEWER
+			// VREditor.GetVREnabledDevicesOnTargetGroup removed; configure VR SDKs via XR Plug-in Management.
+			var devices = System.Array.Empty<string>();
+#elif (UNITY_5_4 || UNITY_5_3 || UNITY_5_2 || UNITY_5_1 || UNITY_5_0)
 			var devices = UnityEditorInternal.VR.VREditor.GetVREnabledDevices(BuildTargetGroup.Standalone);
 #else
 			var devices = UnityEditorInternal.VR.VREditor.GetVREnabledDevicesOnTargetGroup(BuildTargetGroup.Standalone);

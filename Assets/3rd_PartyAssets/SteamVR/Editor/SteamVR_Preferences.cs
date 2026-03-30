@@ -7,6 +7,8 @@
 using UnityEngine;
 using UnityEditor;
 
+#pragma warning disable CS0618 // Valve: [PreferenceItem] deprecated; SettingsProvider migration deferred.
+
 public class SteamVR_Preferences
 {
 	/// <summary>

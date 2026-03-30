@@ -1,4 +1,4 @@
-﻿// Device Finder|Utilities|90050
+// Device Finder|Utilities|90050
 namespace VRTK
 {
     using UnityEngine;
@@ -427,7 +427,11 @@ namespace VRTK
         public static Headsets GetHeadsetType(bool summary = false)
         {
             Headsets returnValue = Headsets.Unknown;
+#if UNITY_2017_2_OR_NEWER
+            cachedHeadsetType = (cachedHeadsetType == "" ? VRTK_XRCompat.GetHeadsetModelName().Replace(" ", "").Replace(".", "").ToLowerInvariant() : cachedHeadsetType);
+#else
             cachedHeadsetType = (cachedHeadsetType == "" ? XRDevice.model.Replace(" ", "").Replace(".", "").ToLowerInvariant() : cachedHeadsetType);
+#endif
             switch (cachedHeadsetType)
             {
                 case "oculusriftcv1":

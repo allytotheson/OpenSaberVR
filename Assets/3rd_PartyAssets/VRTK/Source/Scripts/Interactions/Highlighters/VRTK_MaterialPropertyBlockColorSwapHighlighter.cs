@@ -1,6 +1,7 @@
-﻿// Material Property Block Colour Swap|Highlighters|40021
+// Material Property Block Colour Swap|Highlighters|40021
 namespace VRTK.Highlighters
 {
+#pragma warning disable CS0618 // GetInstanceID — stable string keys for material property blocks
     using UnityEngine;
     using System.Collections;
     using System.Collections.Generic;
@@ -150,4 +151,5 @@ namespace VRTK.Highlighters
             }
         }
     }
+#pragma warning restore CS0618
 }

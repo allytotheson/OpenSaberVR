@@ -1,4 +1,4 @@
-﻿//======= Copyright (c) Valve Corporation, All rights reserved. ===============
+//======= Copyright (c) Valve Corporation, All rights reserved. ===============
 //
 // Purpose: Used to render an external camera of vr player (split front/back).
 //
@@ -304,7 +304,7 @@ public class SteamVR_ExternalCamera : MonoBehaviour
 	void OnEnable()
 	{
 		// Move game view cameras to lower-right quadrant.
-		cameras = FindObjectsOfType<Camera>() as Camera[];
+		cameras = FindObjectsByType<Camera>();
 		if (cameras != null)
 		{
 			var numCameras = cameras.Length;

@@ -27,6 +27,9 @@ public class NotesSpawner : MonoBehaviour
     public GameObject Wall;
     public Transform[] SpawnPoints;
 
+    [Tooltip("Cyan frame in front of the camera marking the rough cut plane (desktop testing).")]
+    public bool showHitLineGuide = true;
+
     private string jsonString;
     private string audioFilePath;
     private List<Note> NotesToSpawn = new List<Note>();
@@ -49,6 +52,53 @@ public class NotesSpawner : MonoBehaviour
     private bool menuLoadInProgress = false;
     private bool audioLoaded = false;
 
+    /// <summary>
+    /// Matches menu labels like "ExpertPlus (Standard)" or "ExpertPlus (NoArrows)"; plain "ExpertPlus" picks the first set that contains it.
+    /// </summary>
+    private static void TryResolveBeatmap(JSONObject infoFile, string songFolder, string selectedDifficulty, out string audioPath, out string beatmapJson)
+    {
+        audioPath = null;
+        beatmapJson = null;
+
+        string wantDiff = selectedDifficulty;
+        string wantChar = null;
+        int sep = selectedDifficulty.LastIndexOf(" (", StringComparison.Ordinal);
+        if (sep > 0 && selectedDifficulty.EndsWith(")", StringComparison.Ordinal))
+        {
+            wantDiff = selectedDifficulty.Substring(0, sep);
+            wantChar = selectedDifficulty.Substring(sep + 2, selectedDifficulty.Length - sep - 3);
+        }
+
+        var difficultyBeatmapSets = infoFile.GetArray("_difficultyBeatmapSets");
+        string songFile = infoFile.GetString("_songFilename");
+
+        foreach (var beatmapSets in difficultyBeatmapSets)
+        {
+            string setChar = "Standard";
+            try
+            {
+                setChar = beatmapSets.Obj.GetString("_beatmapCharacteristicName");
+            }
+            catch
+            {
+                /* omit */
+            }
+
+            if (wantChar != null && !string.Equals(setChar, wantChar, StringComparison.Ordinal))
+                continue;
+
+            foreach (var difficultyBeatmaps in beatmapSets.Obj.GetArray("_difficultyBeatmaps"))
+            {
+                if (difficultyBeatmaps.Obj.GetString("_difficulty") != wantDiff)
+                    continue;
+
+                audioPath = Path.Combine(songFolder, songFile);
+                beatmapJson = File.ReadAllText(Path.Combine(songFolder, difficultyBeatmaps.Obj.GetString("_beatmapFilename")));
+                return;
+            }
+        }
+    }
+
     void Start()
     {
         Songsettings = GameObject.FindGameObjectWithTag("SongSettings").GetComponent<SongSettings>();
@@ -59,24 +109,18 @@ public class NotesSpawner : MonoBehaviour
             if (Directory.GetFiles(path, "info.dat").Length > 0)
             {
                 JSONObject infoFile = JSONObject.Parse(File.ReadAllText(Path.Combine(path, "info.dat")));
-
-                var difficultyBeatmapSets = infoFile.GetArray("_difficultyBeatmapSets");
-                foreach (var beatmapSets in difficultyBeatmapSets)
-                {
-                    foreach (var difficultyBeatmaps in beatmapSets.Obj.GetArray("_difficultyBeatmaps"))
-                    {
-                        if (difficultyBeatmaps.Obj.GetString("_difficulty") == Songsettings.CurrentSong.SelectedDifficulty)
-                        {
-                            audioFilePath = Path.Combine(path, infoFile.GetString("_songFilename"));
-                            jsonString = File.ReadAllText(Path.Combine(path, difficultyBeatmaps.Obj.GetString("_beatmapFilename")));
-                            break;
-                        }
-                    }
-                }
+                TryResolveBeatmap(infoFile, path, Songsettings.CurrentSong.SelectedDifficulty, out audioFilePath, out jsonString);
             }
         }
 
         audioSource = GetComponent<AudioSource>();
+
+        if (string.IsNullOrEmpty(jsonString))
+        {
+            Debug.LogError("[NotesSpawner] No beatmap for this song/difficulty (missing info.dat map or wrong SelectedDifficulty).");
+            enabled = false;
+            return;
+        }
 
         StartCoroutine("LoadAudio");
 
@@ -84,13 +128,17 @@ public class NotesSpawner : MonoBehaviour
 
         var bpm = Convert.ToDouble(Songsettings.CurrentSong.BPM);
 
-        //Notes
+        //Notes (skip bombs / mines: Beat Saber types other than 0 red / 1 blue)
         var notes = json.GetArray("_notes");
         foreach (var note in notes)
         {
+            int type = (int)note.Obj.GetNumber("_type");
+            if (type != 0 && type != 1)
+                continue;
+
             var n = new Note
             {
-                Hand = (NoteType)note.Obj.GetNumber("_type"),
+                Hand = (NoteType)type,
                 CutDirection = (CutDirection)note.Obj.GetNumber("_cutDirection"),
                 LineIndex = (int)note.Obj.GetNumber("_lineIndex"),
                 LineLayer = (int)note.Obj.GetNumber("_lineLayer"),
@@ -120,6 +168,16 @@ public class NotesSpawner : MonoBehaviour
 
         BeatsPerMinute = bpm;
         BeatsPreloadTimeTotal = (beatAnticipationTime + beatWarmupTime);
+
+        if (showHitLineGuide && FindAnyObjectByType<BeatSaberHitLineGuide>() == null)
+        {
+            var guideGo = new GameObject("BeatSaberHitLineGuide");
+            guideGo.AddComponent<BeatSaberHitLineGuide>();
+        }
+
+        GameplayDebugHud.EnsureCreated(transform);
+        if (FindAnyObjectByType<SaberNearestBlockAlignmentProvider>() == null)
+            gameObject.AddComponent<SaberNearestBlockAlignmentProvider>();
     }
 
     private IEnumerator LoadAudio()
@@ -288,6 +346,9 @@ public class NotesSpawner : MonoBehaviour
         demonHandling.WarmUpPosition = -beatWarmupTime * beatWarmupSpeed;
 
         try { if (demon.CompareTag("Untagged")) demon.tag = "Demon"; } catch { /* Add "Demon" tag in Project Settings if needed */ }
+
+        if (demon.GetComponent<NoteMissDetector>() == null)
+            demon.AddComponent<NoteMissDetector>();
     }
 
     /// <summary>Fallback to Cubes when Demons is empty (e.g. during migration).</summary>

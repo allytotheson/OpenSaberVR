@@ -1,4 +1,4 @@
-﻿namespace VRTK
+namespace VRTK
 {
     using UnityEngine;
     using UnityEditor;
@@ -291,7 +291,7 @@
 
                         foreach (BuildTargetGroup targetGroup in targetGroups)
                         {
-                            string[] currentSymbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(targetGroup)
+                            string[] currentSymbols = VRTK_PlayerSettingsScriptingDefines.GetScriptingDefineSymbolsForGroup(targetGroup)
                                                                     .Split(';')
                                                                     .Distinct()
                                                                     .OrderBy(symbol => symbol, StringComparer.Ordinal)
@@ -305,7 +305,7 @@
                                 continue;
                             }
 
-                            PlayerSettings.SetScriptingDefineSymbolsForGroup(targetGroup, string.Join(";", newSymbols));
+                            VRTK_PlayerSettingsScriptingDefines.SetScriptingDefineSymbolsForGroup(targetGroup, string.Join(";", newSymbols));
 
                             string[] removedSymbols = currentSymbols.Except(newSymbols).ToArray();
                             if (removedSymbols.Length > 0)

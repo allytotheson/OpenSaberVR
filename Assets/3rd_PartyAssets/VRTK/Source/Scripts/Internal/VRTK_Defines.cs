@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 #if UNITY_EDITOR
 using System.Collections.Generic;
 using System.Linq;
@@ -55,7 +55,7 @@ namespace VRTK
 
             foreach (BuildTargetGroup targetGroup in VRTK_SharedMethods.GetValidBuildTargetGroups())
             {
-                string[] currentSymbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(targetGroup)
+                string[] currentSymbols = VRTK_PlayerSettingsScriptingDefines.GetScriptingDefineSymbolsForGroup(targetGroup)
                                                         .Split(';')
                                                         .Distinct()
                                                         .OrderBy(symbol => symbol, StringComparer.Ordinal)
@@ -66,7 +66,7 @@ namespace VRTK
 
                 if (!currentSymbols.SequenceEqual(newSymbols))
                 {
-                    PlayerSettings.SetScriptingDefineSymbolsForGroup(targetGroup, string.Join(";", newSymbols));
+                    VRTK_PlayerSettingsScriptingDefines.SetScriptingDefineSymbolsForGroup(targetGroup, string.Join(";", newSymbols));
                 }
             }
         }

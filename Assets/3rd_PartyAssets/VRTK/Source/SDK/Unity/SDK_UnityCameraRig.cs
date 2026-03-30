@@ -1,4 +1,4 @@
-﻿namespace VRTK
+namespace VRTK
 {
     using UnityEngine;
 #if UNITY_2017_2_OR_NEWER
@@ -22,7 +22,12 @@
         {
             if (lockPhysicsUpdateRateToRenderFrequency && Time.timeScale > 0.0f)
             {
+#if UNITY_2017_2_OR_NEWER
+                float hz = Mathf.Max(VRTK_XRCompat.GetDisplayRefreshRate(), 1f);
+                Time.fixedDeltaTime = Time.timeScale / hz;
+#else
                 Time.fixedDeltaTime = Time.timeScale / XRDevice.refreshRate;
+#endif
             }
         }
     }

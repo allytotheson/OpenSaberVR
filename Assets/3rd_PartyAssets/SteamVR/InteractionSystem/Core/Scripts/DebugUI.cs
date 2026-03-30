@@ -1,4 +1,4 @@
-﻿//======= Copyright (c) Valve Corporation, All rights reserved. ===============
+//======= Copyright (c) Valve Corporation, All rights reserved. ===============
 //
 // Purpose: Debug UI shown for the player
 //
@@ -23,7 +23,7 @@ namespace Valve.VR.InteractionSystem
 			{
 				if ( _instance == null )
 				{
-					_instance = GameObject.FindObjectOfType<DebugUI>();
+					_instance = GameObject.FindAnyObjectByType<DebugUI>();
 				}
 				return _instance;
 			}

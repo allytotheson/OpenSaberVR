@@ -1,4 +1,4 @@
-﻿// Teleport Disable On Headset Collision|Locomotion|20040
+// Teleport Disable On Headset Collision|Locomotion|20040
 namespace VRTK
 {
     using UnityEngine;
@@ -30,7 +30,7 @@ namespace VRTK
 
         protected virtual void OnEnable()
         {
-            teleporter = (teleporter != null ? teleporter : FindObjectOfType<VRTK_BasicTeleport>());
+            teleporter = (teleporter != null ? teleporter : FindAnyObjectByType<VRTK_BasicTeleport>());
             enableAtEndOfFrameRoutine = StartCoroutine(EnableAtEndOfFrame());
         }
 
@@ -61,7 +61,7 @@ namespace VRTK
             }
             yield return new WaitForEndOfFrame();
 
-            headsetCollision = (headsetCollision != null ? headsetCollision : FindObjectOfType<VRTK_HeadsetCollision>());
+            headsetCollision = (headsetCollision != null ? headsetCollision : FindAnyObjectByType<VRTK_HeadsetCollision>());
             if (headsetCollision == null)
             {
                 VRTK_Logger.Error(VRTK_Logger.GetCommonMessage(VRTK_Logger.CommonMessageKeys.REQUIRED_COMPONENT_MISSING_FROM_SCENE, "VRTK_TeleportDisableOnHeadsetCollision", "VRTK_HeadsetCollision"));

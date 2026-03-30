@@ -1,4 +1,4 @@
-﻿// Player Climb|Locomotion|20120
+// Player Climb|Locomotion|20120
 namespace VRTK
 {
     using GrabAttachMechanics;
@@ -93,16 +93,16 @@ namespace VRTK
 
         protected virtual void Awake()
         {
-            bodyPhysics = (bodyPhysics != null ? bodyPhysics : FindObjectOfType<VRTK_BodyPhysics>());
+            bodyPhysics = (bodyPhysics != null ? bodyPhysics : FindAnyObjectByType<VRTK_BodyPhysics>());
 
             if (bodyPhysics == null)
             {
                 VRTK_Logger.Error(VRTK_Logger.GetCommonMessage(VRTK_Logger.CommonMessageKeys.REQUIRED_COMPONENT_MISSING_FROM_SCENE, "VRTK_PlayerClimb", "VRTK_BodyPhysics"));
             }
 
-            teleporter = (teleporter != null ? teleporter : FindObjectOfType<VRTK_BasicTeleport>());
-            headsetCollision = (headsetCollision != null ? headsetCollision : FindObjectOfType<VRTK_HeadsetCollision>());
-            positionRewind = (positionRewind != null ? positionRewind : FindObjectOfType<VRTK_PositionRewind>());
+            teleporter = (teleporter != null ? teleporter : FindAnyObjectByType<VRTK_BasicTeleport>());
+            headsetCollision = (headsetCollision != null ? headsetCollision : FindAnyObjectByType<VRTK_HeadsetCollision>());
+            positionRewind = (positionRewind != null ? positionRewind : FindAnyObjectByType<VRTK_PositionRewind>());
 
             VRTK_SDKManager.AttemptAddBehaviourToToggleOnLoadedSetupChange(this);
         }

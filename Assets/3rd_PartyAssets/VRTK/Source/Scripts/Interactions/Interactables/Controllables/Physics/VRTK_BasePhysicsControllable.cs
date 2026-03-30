@@ -82,7 +82,7 @@ namespace VRTK.Controllables.PhysicsBased
         {
             if (controlRigidbody != null)
             {
-                controlRigidbody.velocity = newVelocity;
+                controlRigidbody.linearVelocity = newVelocity;
             }
         }
 
@@ -90,7 +90,7 @@ namespace VRTK.Controllables.PhysicsBased
         {
             if (controlRigidbody != null)
             {
-                controlRigidbody.drag = givenDrag;
+                controlRigidbody.linearDamping = givenDrag;
             }
         }
 
@@ -98,7 +98,7 @@ namespace VRTK.Controllables.PhysicsBased
         {
             if (controlRigidbody != null)
             {
-                controlRigidbody.angularDrag = givenDrag;
+                controlRigidbody.angularDamping = givenDrag;
             }
         }
 

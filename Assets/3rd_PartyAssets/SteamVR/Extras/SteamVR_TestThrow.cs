@@ -43,12 +43,12 @@ public class SteamVR_TestThrow : MonoBehaviour
 			var origin = trackedObj.origin ? trackedObj.origin : trackedObj.transform.parent;
 			if (origin != null)
 			{
-				rigidbody.velocity = origin.TransformVector(device.velocity);
+				rigidbody.linearVelocity = origin.TransformVector(device.velocity);
 				rigidbody.angularVelocity = origin.TransformVector(device.angularVelocity);
 			}
 			else
 			{
-				rigidbody.velocity = device.velocity;
+				rigidbody.linearVelocity = device.velocity;
 				rigidbody.angularVelocity = device.angularVelocity;
 			}
 

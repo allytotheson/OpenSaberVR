@@ -1,4 +1,4 @@
-﻿// Controller Tooltips|Prefabs|0070
+// Controller Tooltips|Prefabs|0070
 namespace VRTK
 {
     using UnityEngine;
@@ -304,7 +304,7 @@ namespace VRTK
                 }
             }
 
-            headsetControllerAware = (headsetControllerAware != null ? headsetControllerAware : FindObjectOfType<VRTK_HeadsetControllerAware>());
+            headsetControllerAware = (headsetControllerAware != null ? headsetControllerAware : FindAnyObjectByType<VRTK_HeadsetControllerAware>());
             if (headsetControllerAware != null)
             {
                 headsetControllerAware.ControllerGlanceEnter += DoGlanceEnterController;

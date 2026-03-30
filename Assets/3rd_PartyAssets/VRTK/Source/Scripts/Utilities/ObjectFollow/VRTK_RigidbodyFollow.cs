@@ -148,11 +148,11 @@ namespace VRTK
             float trackVelocityLimit = float.PositiveInfinity;
             Vector3 positionDelta = newPosition - rigidbodyToChange.position;
             Vector3 velocityTarget = positionDelta / Time.fixedDeltaTime;
-            Vector3 calculatedVelocity = Vector3.MoveTowards(rigidbodyToChange.velocity, velocityTarget, maxDistanceDelta);
+            Vector3 calculatedVelocity = Vector3.MoveTowards(rigidbodyToChange.linearVelocity, velocityTarget, maxDistanceDelta);
 
             if (trackVelocityLimit == float.PositiveInfinity || calculatedVelocity.sqrMagnitude < trackVelocityLimit)
             {
-                rigidbodyToChange.velocity = calculatedVelocity;
+                rigidbodyToChange.linearVelocity = calculatedVelocity;
             }
         }
 

@@ -1,4 +1,4 @@
-﻿// Unity SDK Controller Tracker|SDK_Unity|005
+// Unity SDK Controller Tracker|SDK_Unity|005
 namespace VRTK
 {
     using UnityEngine;
@@ -57,8 +57,19 @@ namespace VRTK
 
         protected virtual void FixedUpdate()
         {
+#if UNITY_2019_1_OR_NEWER
+            InputDevice device = InputDevices.GetDeviceAtXRNode(nodeType);
+            if (device.isValid
+                && device.TryGetFeatureValue(CommonUsages.devicePosition, out Vector3 pos)
+                && device.TryGetFeatureValue(CommonUsages.deviceRotation, out Quaternion rot))
+            {
+                transform.localPosition = pos;
+                transform.localRotation = rot;
+            }
+#else
             transform.localPosition = InputTracking.GetLocalPosition(nodeType);
             transform.localRotation = InputTracking.GetLocalRotation(nodeType);
+#endif
         }
     }
 }

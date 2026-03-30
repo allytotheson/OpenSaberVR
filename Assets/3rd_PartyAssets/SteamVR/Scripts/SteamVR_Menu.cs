@@ -1,4 +1,4 @@
-﻿//======= Copyright (c) Valve Corporation, All rights reserved. ===============
+//======= Copyright (c) Valve Corporation, All rights reserved. ===============
 //
 // Purpose: Example menu using OnGUI with SteamVR_Camera's overlay support
 //
@@ -250,7 +250,7 @@ public class SteamVR_Menu : MonoBehaviour
 
 		// If an existing camera is rendering into the overlay texture, we need
 		// to temporarily disable it to keep it from clearing the texture on us.
-		var cameras = Object.FindObjectsOfType(typeof(Camera)) as Camera[];
+		var cameras = Object.FindObjectsByType(typeof(Camera)) as Camera[];
 		foreach (var cam in cameras)
 		{
 			if (cam.enabled && cam.targetTexture == texture)

@@ -1,10 +1,11 @@
 using System.Collections.Generic;
 using Boomlagoon.JSON;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class JSONObjectTester : MonoBehaviour {
 
-	public GUIText infoText;
+	public Text infoText;
 
 	private string stringToEvaluate = @"{""web-app"": {
   ""servlet"": [   
@@ -96,7 +97,8 @@ public class JSONObjectTester : MonoBehaviour {
     ""taglib-location"": ""/WEB-INF/tlds/cofax.tld""}}}";
 
 	void Start() {
-		infoText.gameObject.active = false;
+		if (infoText != null)
+			infoText.gameObject.SetActive(false);
 
 		//JSONObject usage example:
 

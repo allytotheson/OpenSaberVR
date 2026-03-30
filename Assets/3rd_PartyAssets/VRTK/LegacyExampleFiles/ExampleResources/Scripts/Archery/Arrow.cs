@@ -65,7 +65,7 @@
         {
             if (!collided)
             {
-                transform.LookAt(transform.position + rigidBody.velocity);
+                transform.LookAt(transform.position + rigidBody.linearVelocity);
             }
         }
 

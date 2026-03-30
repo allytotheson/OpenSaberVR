@@ -1,4 +1,4 @@
-﻿namespace VRTK.Examples
+namespace VRTK.Examples
 {
     using UnityEngine;
 
@@ -45,7 +45,7 @@
 
         private void ResetMenuItems()
         {
-            foreach (Menu_Object_Spawner menuObjectSpawner in FindObjectsOfType<Menu_Object_Spawner>())
+            foreach (Menu_Object_Spawner menuObjectSpawner in FindObjectsByType<Menu_Object_Spawner>())
             {
                 menuObjectSpawner.StopUsing();
             }

@@ -177,8 +177,8 @@ namespace VRTK
                 createRigidbody = true;
                 trackedRigidbody = gameObject.AddComponent<Rigidbody>();
                 trackedRigidbody.useGravity = false;
-                trackedRigidbody.drag = 0f;
-                trackedRigidbody.angularDrag = 0f;
+                trackedRigidbody.linearDamping = 0f;
+                trackedRigidbody.angularDamping = 0f;
             }
         }
 

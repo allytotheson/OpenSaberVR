@@ -1,4 +1,4 @@
-﻿// Base Headset|SDK_Base|005
+// Base Headset|SDK_Base|005
 namespace VRTK
 {
     using UnityEngine;
@@ -147,7 +147,11 @@ namespace VRTK
 
         protected virtual string ScrapeHeadsetType()
         {
+#if UNITY_2017_2_OR_NEWER
+            string model = CleanPropertyString(VRTK_XRCompat.GetHeadsetModelName());
+#else
             string model = CleanPropertyString(XRDevice.model);
+#endif
             string deviceName = CleanPropertyString(XRSettings.loadedDeviceName);
             switch (model)
             {

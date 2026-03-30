@@ -1,4 +1,4 @@
-﻿namespace VRTK
+namespace VRTK
 {
     using UnityEngine;
 #if UNITY_2017_2_OR_NEWER
@@ -40,6 +40,7 @@
 
         protected virtual void Update()
         {
+#if !UNITY_6000_0_OR_NEWER
             if (XRDevice.GetTrackingSpaceType() != TrackingSpaceType.RoomScale && forceRoomScaleTracking)
             {
                 XRDevice.SetTrackingSpaceType(TrackingSpaceType.RoomScale);
@@ -49,7 +50,7 @@
             {
                 XRDevice.SetTrackingSpaceType(TrackingSpaceType.Stationary);
             }
-
+#endif
         }
 
         /// <summary>

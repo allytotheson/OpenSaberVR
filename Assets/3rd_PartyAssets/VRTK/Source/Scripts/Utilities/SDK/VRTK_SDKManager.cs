@@ -1,4 +1,4 @@
-﻿// SDK Manager|Utilities|90010
+// SDK Manager|Utilities|90010
 namespace VRTK
 {
     using UnityEngine;
@@ -345,8 +345,7 @@ namespace VRTK
         [Tooltip("The list of Build Target Groups to exclude.")]
         public BuildTargetGroup[] excludeTargetGroups = new BuildTargetGroup[] {
 #if UNITY_2017_1_OR_NEWER
-            BuildTargetGroup.Switch,
-            BuildTargetGroup.Facebook
+            BuildTargetGroup.Switch
 #endif
         };
 #endif
@@ -418,7 +417,7 @@ namespace VRTK
             //get current non-removable scripting define symbols
             foreach (BuildTargetGroup targetGroup in targetGroups)
             {
-                IEnumerable<string> nonSDKSymbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(targetGroup)
+                IEnumerable<string> nonSDKSymbols = VRTK_PlayerSettingsScriptingDefines.GetScriptingDefineSymbolsForGroup(targetGroup)
                     .Split(';')
                     .Where(symbol => !symbol.StartsWith(SDK_ScriptingDefineSymbolPredicateAttribute.RemovableSymbolPrefix, StringComparison.Ordinal));
                 newSymbolsByTargetGroup[targetGroup] = new HashSet<string>(nonSDKSymbols);
@@ -476,7 +475,7 @@ namespace VRTK
             foreach (KeyValuePair<BuildTargetGroup, HashSet<string>> keyValuePair in newSymbolsByTargetGroup)
             {
                 BuildTargetGroup targetGroup = keyValuePair.Key;
-                string[] currentSymbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(targetGroup)
+                string[] currentSymbols = VRTK_PlayerSettingsScriptingDefines.GetScriptingDefineSymbolsForGroup(targetGroup)
                                                         .Split(';')
                                                         .Distinct()
                                                         .OrderBy(symbol => symbol, StringComparer.Ordinal)
@@ -488,7 +487,7 @@ namespace VRTK
                     continue;
                 }
 
-                PlayerSettings.SetScriptingDefineSymbolsForGroup(targetGroup, string.Join(";", newSymbols));
+                VRTK_PlayerSettingsScriptingDefines.SetScriptingDefineSymbolsForGroup(targetGroup, string.Join(";", newSymbols));
 
                 string[] removedSymbols = currentSymbols.Except(newSymbols).ToArray();
                 if (removedSymbols.Length > 0)
@@ -553,6 +552,7 @@ namespace VRTK
                     deviceNames = deviceNames.Except(new[] { "None" }).ToArray();
                 }
 
+#pragma warning disable CS0618 // VREditor VR device list APIs are obsolete; XR Management migration is out of scope for this VRTK fork.
 #if UNITY_5_5_OR_NEWER
                 VREditor.SetVREnabledOnTargetGroup(targetGroup, vrEnabled);
 #else
@@ -579,6 +579,7 @@ namespace VRTK
                     targetGroup,
                     devices
                 );
+#pragma warning restore CS0618
             }
         }
 #endif
@@ -740,7 +741,9 @@ namespace VRTK
                     .Distinct()
                     .Concat(new[] { "None" }) // Add "None" to the end to fall back to
                     .ToArray();
+#pragma warning disable CS0618 // Legacy XRSettings.LoadDeviceByName — VRTK SDK setup path; use XR plug-in management in a future port.
                 XRSettings.LoadDeviceByName(vrDeviceNames);
+#pragma warning restore CS0618
             }
 
             StartCoroutine(FinishSDKSetupLoading(sdkSetups, previousLoadedSetup));
@@ -789,8 +792,10 @@ namespace VRTK
 
             if (disableVR)
             {
+#pragma warning disable CS0618 // Legacy XRSettings VR toggle — VRTK unload path.
                 XRSettings.LoadDeviceByName("None");
                 XRSettings.enabled = false;
+#pragma warning restore CS0618
             }
 
             if (previousLoadedSetup != null)
@@ -913,9 +918,15 @@ namespace VRTK
             if (loadedSetup.usedVRDeviceNames.Except(new[] { "None" }).Any())
             {
                 // The loaded VR Device is actually a VR Device
+#pragma warning disable CS0618 // Legacy XRSettings.enabled — VRTK SDK setup path.
                 XRSettings.enabled = true;
+#pragma warning restore CS0618
 
+#if UNITY_2017_2_OR_NEWER
+                if (!VRTK_XRCompat.IsHmdPresent())
+#else
                 if (!XRDevice.isPresent)
+#endif
                 {
                     // Despite being loaded, the loaded VR Device isn't working correctly
                     int nextSetupIndex = Array.IndexOf(sdkSetups, loadedSetup) + 1;
@@ -1152,7 +1163,7 @@ namespace VRTK
         /// </summary>
         private static void RemoveLegacyScriptingDefineSymbols()
         {
-            string[] currentSymbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(BuildTargetGroup.Standalone)
+            string[] currentSymbols = VRTK_PlayerSettingsScriptingDefines.GetScriptingDefineSymbolsForGroup(BuildTargetGroup.Standalone)
                 .Split(';')
                 .Distinct()
                 .OrderBy(symbol => symbol, StringComparer.Ordinal)
@@ -1164,7 +1175,7 @@ namespace VRTK
                 return;
             }
 
-            PlayerSettings.SetScriptingDefineSymbolsForGroup(BuildTargetGroup.Standalone, string.Join(";", newSymbols));
+            VRTK_PlayerSettingsScriptingDefines.SetScriptingDefineSymbolsForGroup(BuildTargetGroup.Standalone, string.Join(";", newSymbols));
 
             string[] removedSymbols = currentSymbols.Except(newSymbols).ToArray();
             if (removedSymbols.Length > 0)

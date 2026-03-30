@@ -1,4 +1,4 @@
-﻿// Position Rewind|Presence|70070
+// Position Rewind|Presence|70070
 namespace VRTK
 {
     using UnityEngine;
@@ -149,7 +149,7 @@ namespace VRTK
             lastGoodPositionSet = false;
             headset = VRTK_DeviceFinder.HeadsetTransform();
             playArea = VRTK_DeviceFinder.PlayAreaTransform();
-            bodyPhysics = (bodyPhysics != null ? bodyPhysics : FindObjectOfType<VRTK_BodyPhysics>());
+            bodyPhysics = (bodyPhysics != null ? bodyPhysics : FindAnyObjectByType<VRTK_BodyPhysics>());
             headsetCollision = (headsetCollision != null ? headsetCollision : GetComponentInChildren<VRTK_HeadsetCollision>());
             ManageListeners(true);
         }

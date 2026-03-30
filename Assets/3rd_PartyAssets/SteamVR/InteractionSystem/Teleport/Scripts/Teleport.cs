@@ -1,4 +1,4 @@
-﻿//======= Copyright (c) Valve Corporation, All rights reserved. ===============
+//======= Copyright (c) Valve Corporation, All rights reserved. ===============
 //
 // Purpose: Handles all the teleport logic
 //
@@ -129,7 +129,7 @@ namespace Valve.VR.InteractionSystem
 			{
 				if ( _instance == null )
 				{
-					_instance = GameObject.FindObjectOfType<Teleport>();
+					_instance = GameObject.FindAnyObjectByType<Teleport>();
 				}
 
 				return _instance;
@@ -167,7 +167,7 @@ namespace Valve.VR.InteractionSystem
 		//-------------------------------------------------
 		void Start()
 		{
-			teleportMarkers = GameObject.FindObjectsOfType<TeleportMarkerBase>();
+			teleportMarkers = GameObject.FindObjectsByType<TeleportMarkerBase>();
 
 			HidePointer();
 

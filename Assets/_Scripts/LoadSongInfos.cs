@@ -1,4 +1,4 @@
-﻿using Boomlagoon.JSON;
+using Boomlagoon.JSON;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -54,9 +54,20 @@ public class LoadSongInfos : MonoBehaviour
                     var difficultyBeatmapSets = infoFile.GetArray("_difficultyBeatmapSets");
                     foreach (var beatmapSets in difficultyBeatmapSets)
                     {
+                        string characteristic = "Standard";
+                        try
+                        {
+                            characteristic = beatmapSets.Obj.GetString("_beatmapCharacteristicName");
+                        }
+                        catch
+                        {
+                            /* very old info.dat without characteristics */
+                        }
+
                         foreach (var difficultyBeatmaps in beatmapSets.Obj.GetArray("_difficultyBeatmaps"))
                         {
-                            song.Difficulties.Add(difficultyBeatmaps.Obj.GetString("_difficulty"));
+                            string diff = difficultyBeatmaps.Obj.GetString("_difficulty");
+                            song.Difficulties.Add($"{diff} ({characteristic})");
                         }
                     }
 

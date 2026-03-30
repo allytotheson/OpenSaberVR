@@ -1,4 +1,4 @@
-﻿// Object Control|Locomotion|20060
+// Object Control|Locomotion|20060
 namespace VRTK
 {
     using UnityEngine;
@@ -141,7 +141,7 @@ namespace VRTK
                 return;
             }
             SetControlledObject();
-            bodyPhysics = (!controlOverrideObject ? (bodyPhysics != null ? bodyPhysics : FindObjectOfType<VRTK_BodyPhysics>()) : null);
+            bodyPhysics = (!controlOverrideObject ? (bodyPhysics != null ? bodyPhysics : FindAnyObjectByType<VRTK_BodyPhysics>()) : null);
 
             directionDevice = GetDirectionDevice();
             SetListeners(true);

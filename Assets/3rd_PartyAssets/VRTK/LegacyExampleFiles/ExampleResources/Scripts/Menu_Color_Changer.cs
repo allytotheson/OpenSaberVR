@@ -1,4 +1,4 @@
-﻿namespace VRTK.Examples
+namespace VRTK.Examples
 {
     using UnityEngine;
 
@@ -21,7 +21,7 @@
 
         private void ResetMenuItems()
         {
-            foreach (Menu_Color_Changer menuColorChanger in FindObjectsOfType<Menu_Color_Changer>())
+            foreach (Menu_Color_Changer menuColorChanger in FindObjectsByType<Menu_Color_Changer>())
             {
                 menuColorChanger.StopUsing();
             }

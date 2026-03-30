@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -6,6 +6,8 @@ using UnityEditor;
 using UnityEditorInternal;
 using UnityEditorInternal.VR;
 using UnityEngine;
+
+#pragma warning disable CS0618 // VRTK: UnityEditorInternal.VR.VREditor APIs deprecated; XR Management migration deferred.
 
 namespace VRTK
 {
@@ -124,7 +126,9 @@ namespace VRTK
                         }
 
                         string[] vrEnabledDevices;
-#if UNITY_5_5_OR_NEWER
+#if UNITY_6000_0_OR_NEWER
+                        vrEnabledDevices = System.Array.Empty<string>();
+#elif UNITY_5_5_OR_NEWER
                         vrEnabledDevices = VREditor.GetVREnabledDevicesOnTargetGroup(targetGroup);
 #else
                         vrEnabledDevices = VREditor.GetVREnabledDevices(targetGroup);
@@ -142,7 +146,7 @@ namespace VRTK
                     {
                         string symbols = string.Join(
                             ";",
-                            PlayerSettings.GetScriptingDefineSymbolsForGroup(targetGroup)
+                            VRTK_PlayerSettingsScriptingDefines.GetScriptingDefineSymbolsForGroup(targetGroup)
                                           .Split(';')
                                           .Where(symbol => !symbol.StartsWith(VRTK_Defines.VersionScriptingDefineSymbolPrefix, StringComparison.Ordinal))
                                           .ToArray());

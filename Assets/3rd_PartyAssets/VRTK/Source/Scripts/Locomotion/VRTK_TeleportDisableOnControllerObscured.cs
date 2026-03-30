@@ -1,4 +1,4 @@
-﻿// Teleport Disable On Controller Obscured|Locomotion|20050
+// Teleport Disable On Controller Obscured|Locomotion|20050
 namespace VRTK
 {
     using UnityEngine;
@@ -29,7 +29,7 @@ namespace VRTK
 
         protected virtual void OnEnable()
         {
-            teleporter = (teleporter != null ? teleporter : FindObjectOfType<VRTK_BasicTeleport>());
+            teleporter = (teleporter != null ? teleporter : FindAnyObjectByType<VRTK_BasicTeleport>());
             enableAtEndOfFrameRoutine = StartCoroutine(EnableAtEndOfFrame());
         }
 
@@ -60,7 +60,7 @@ namespace VRTK
             }
             yield return new WaitForEndOfFrame();
 
-            headsetControllerAware = (headsetControllerAware != null ? headsetControllerAware : FindObjectOfType<VRTK_HeadsetControllerAware>());
+            headsetControllerAware = (headsetControllerAware != null ? headsetControllerAware : FindAnyObjectByType<VRTK_HeadsetControllerAware>());
             if (headsetControllerAware == null)
             {
                 VRTK_Logger.Error(VRTK_Logger.GetCommonMessage(VRTK_Logger.CommonMessageKeys.REQUIRED_COMPONENT_MISSING_FROM_SCENE, "VRTK_TeleportDisableOnControllerObscured", "VRTK_HeadsetControllerAware"));

@@ -1,4 +1,4 @@
-﻿namespace VRTK.Examples
+namespace VRTK.Examples
 {
     using UnityEngine;
 
@@ -15,12 +15,12 @@
                 VRTK_Logger.Error(VRTK_Logger.GetCommonMessage(VRTK_Logger.CommonMessageKeys.REQUIRED_COMPONENT_MISSING_FROM_GAMEOBJECT, "VRTK_RoomExtender_ControllerExample", "VRTK_ControllerEvents", "the Controller Alias"));
                 return;
             }
-            if (FindObjectOfType<VRTK_RoomExtender>() == null)
+            if (FindAnyObjectByType<VRTK_RoomExtender>() == null)
             {
                 VRTK_Logger.Error(VRTK_Logger.GetCommonMessage(VRTK_Logger.CommonMessageKeys.REQUIRED_COMPONENT_MISSING_FROM_SCENE, "VRTK_RoomExtender_ControllerExample", "VRTK_RoomExtender"));
                 return;
             }
-            roomExtender = FindObjectOfType<VRTK_RoomExtender>();
+            roomExtender = FindAnyObjectByType<VRTK_RoomExtender>();
             //Setup controller event listeners
             GetComponent<VRTK_ControllerEvents>().TouchpadPressed += new ControllerInteractionEventHandler(DoTouchpadPressed);
             GetComponent<VRTK_ControllerEvents>().TouchpadReleased += new ControllerInteractionEventHandler(DoTouchpadReleased);

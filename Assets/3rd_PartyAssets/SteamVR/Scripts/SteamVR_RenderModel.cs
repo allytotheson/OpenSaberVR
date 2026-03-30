@@ -599,7 +599,18 @@ public class SteamVR_RenderModel : MonoBehaviour
 			return;
 		}
 
-		var system = OpenVR.System;
+		CVRSystem system;
+		try
+		{
+			system = OpenVR.System;
+		}
+		catch (System.DllNotFoundException)
+		{
+			openVrRenderModelsUnavailable = true;
+			updateDynamically = false;
+			enabled = false;
+			return;
+		}
 		if (system != null && system.IsTrackedDeviceConnected((uint)index))
 		{
 			UpdateModel();
@@ -684,8 +695,25 @@ public class SteamVR_RenderModel : MonoBehaviour
 #endif
 		// Update component transforms dynamically.
 		if (updateDynamically)
-			UpdateComponents(OpenVR.RenderModels);
+		{
+			if (openVrRenderModelsUnavailable)
+				return;
+			CVRRenderModels renderModels;
+			try
+			{
+				renderModels = OpenVR.RenderModels;
+			}
+			catch (System.DllNotFoundException)
+			{
+				openVrRenderModelsUnavailable = true;
+				updateDynamically = false;
+				return;
+			}
+			UpdateComponents(renderModels);
+		}
 	}
+
+	static bool openVrRenderModelsUnavailable;
 
 	Dictionary<int, string> nameCache;
 
@@ -710,11 +738,13 @@ public class SteamVR_RenderModel : MonoBehaviour
 
 			// Cache names since accessing an object's name allocate memory.
 			string name;
+#pragma warning disable CS0618
 			if (!nameCache.TryGetValue(child.GetInstanceID(), out name))
 			{
 				name = child.name;
 				nameCache.Add(child.GetInstanceID(), name);
             }
+#pragma warning restore CS0618
 
 			var componentState = new RenderModel_ComponentState_t();
             if (!renderModels.GetComponentState(renderModelName, name, ref controllerState, ref controllerModeState, ref componentState))

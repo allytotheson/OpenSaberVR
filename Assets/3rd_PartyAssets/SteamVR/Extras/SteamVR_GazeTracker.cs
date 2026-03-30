@@ -1,4 +1,4 @@
-﻿//======= Copyright (c) Valve Corporation, All rights reserved. ===============
+//======= Copyright (c) Valve Corporation, All rights reserved. ===============
 using UnityEngine;
 using System.Collections;
 
@@ -44,7 +44,7 @@ public class SteamVR_GazeTracker : MonoBehaviour
         // If we haven't set up hmdTrackedObject find what the user is looking at
         if (hmdTrackedObject == null)
         {
-            SteamVR_TrackedObject[] trackedObjects = FindObjectsOfType<SteamVR_TrackedObject>();
+            SteamVR_TrackedObject[] trackedObjects = FindObjectsByType<SteamVR_TrackedObject>();
             foreach (SteamVR_TrackedObject tracked in trackedObjects)
             {
                 if (tracked.index == SteamVR_TrackedObject.EIndex.Hmd)

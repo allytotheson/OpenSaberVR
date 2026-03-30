@@ -1,4 +1,4 @@
-﻿// UI Pointer|UI|80020
+// UI Pointer|UI|80020
 namespace VRTK
 {
     using UnityEngine;
@@ -328,10 +328,13 @@ namespace VRTK
 
             if (!(eventSystem is VRTK_EventSystem))
             {
-                eventSystem = eventSystem.gameObject.AddComponent<VRTK_EventSystem>();
+                // VRTK_EventSystem inherits EventSystem — cannot AddComponent while a base EventSystem exists on the same GameObject.
+                GameObject eventGo = eventSystem.gameObject;
+                UnityEngine.Object.DestroyImmediate(eventSystem);
+                eventSystem = eventGo.AddComponent<VRTK_EventSystem>();
             }
 
-            return eventSystem.GetComponent<VRTK_VRInputModule>();
+            return eventSystem != null ? eventSystem.GetComponent<VRTK_VRInputModule>() : null;
         }
 
         /// <summary>
@@ -339,7 +342,7 @@ namespace VRTK
         /// </summary>
         public virtual void RemoveEventSystem()
         {
-            VRTK_EventSystem vrtkEventSystem = FindObjectOfType<VRTK_EventSystem>();
+            VRTK_EventSystem vrtkEventSystem = FindAnyObjectByType<VRTK_EventSystem>();
 
             if (vrtkEventSystem == null)
             {
@@ -483,7 +486,7 @@ namespace VRTK
 
         protected virtual void LateUpdate()
         {
-            if (controllerEvents != null)
+            if (controllerEvents != null && pointerEventData != null)
             {
                 pointerEventData.pointerId = (int)VRTK_ControllerReference.GetRealIndex(GetControllerReference());
                 VRTK_SharedMethods.AddDictionaryValue(pointerLengths, pointerEventData.pointerId, maximumLength, true);
@@ -541,7 +544,7 @@ namespace VRTK
         {
             if (cachedEventSystem == null)
             {
-                cachedEventSystem = FindObjectOfType<EventSystem>();
+                cachedEventSystem = FindAnyObjectByType<EventSystem>();
             }
 
             if (cachedVRInputModule == null)
