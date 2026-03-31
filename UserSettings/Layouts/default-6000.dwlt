@@ -273,8 +273,8 @@ MonoBehaviour:
     y: 0
     width: 492.00006
     height: 786.6667
-  m_MinSize: {x: 275, y: 50}
-  m_MaxSize: {x: 4000, y: 4000}
+  m_MinSize: {x: 276, y: 76}
+  m_MaxSize: {x: 4001, y: 4026}
   m_ActualView: {fileID: 18}
   m_Panes:
   - {fileID: 18}
@@ -302,7 +302,7 @@ MonoBehaviour:
   m_Pos:
     serializedVersion: 2
     x: 0
-    y: 42.666668
+    y: 0
     width: 1493.3334
     height: 36
   m_SerializedDataModeController:
@@ -583,7 +583,7 @@ MonoBehaviour:
   m_Pos:
     serializedVersion: 2
     x: 0
-    y: 78.66667
+    y: 24
     width: 258.33334
     height: 550.6667
   m_SerializedDataModeController:
@@ -602,8 +602,7 @@ MonoBehaviour:
   m_SceneHierarchy:
     m_TreeViewState:
       scrollPos: {x: 0, y: 0}
-      m_SelectedIDs:
-      - m_Data: 36094
+      m_SelectedIDs: []
       m_LastClickedID:
         m_Data: 0
       m_ExpandedIDs:
@@ -766,8 +765,8 @@ MonoBehaviour:
       - m_Data: 252106
       m_RenameOverlay:
         m_UserAcceptedRename: 0
-        m_Name: Convex Mesh Volume
-        m_OriginalName: Convex Mesh Volume
+        m_Name: 
+        m_OriginalName: 
         m_EditFieldRect:
           serializedVersion: 2
           x: 0
@@ -775,10 +774,10 @@ MonoBehaviour:
           width: 0
           height: 0
         m_UserData:
-          m_Data: -307228
+          m_Data: 0
         m_IsWaitingForDelay: 0
         m_IsRenaming: 0
-        m_OriginalEventType: 0
+        m_OriginalEventType: 11
         m_IsRenamingFilename: 0
         m_TrimLeadingAndTrailingWhitespace: 0
         m_ClientGUIView: {fileID: 8}
@@ -812,8 +811,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Scene\u200B"
   m_Pos:
     serializedVersion: 2
-    x: 259.33334
-    y: 78.66667
+    x: 260.33334
+    y: 24
     width: 740
     height: 550.6667
   m_SerializedDataModeController:
@@ -1423,7 +1422,7 @@ MonoBehaviour:
   m_Rotation:
     m_Target: {x: 0.22762208, y: 0.0009742172, z: -0.00022767847, w: 0.973759}
     speed: 2
-    m_Value: {x: 0.22761989, y: 0.00097420777, z: -0.00022767627, w: 0.9737496}
+    m_Value: {x: -0.22762209, y: -0.00097421726, z: 0.00022767848, w: -0.973759}
   m_Size:
     m_Target: 2.4765887
     speed: 2
@@ -1523,7 +1522,7 @@ MonoBehaviour:
   m_Pos:
     serializedVersion: 2
     x: 0
-    y: 655.3334
+    y: 600.6667
     width: 1000.3333
     height: 184
   m_SerializedDataModeController:
@@ -1574,18 +1573,17 @@ MonoBehaviour:
       m_Data: 58952
     m_ExpandedIDs:
     - m_Data: 0
-    - m_Data: 36152
-    - m_Data: 36156
-    - m_Data: 36158
-    - m_Data: 36160
-    - m_Data: 51582
-    - m_Data: 51584
-    - m_Data: 58952
-    - m_Data: 1000000000
+    - m_Data: 48802
+    - m_Data: 48804
+    - m_Data: 48806
+    - m_Data: 48808
+    - m_Data: 48810
+    - m_Data: 48812
+    - m_Data: 48814
     m_RenameOverlay:
       m_UserAcceptedRename: 0
-      m_Name: _Prefabs
-      m_OriginalName: _Prefabs
+      m_Name: 
+      m_OriginalName: 
       m_EditFieldRect:
         serializedVersion: 2
         x: 0
@@ -1593,10 +1591,10 @@ MonoBehaviour:
         width: 0
         height: 0
       m_UserData:
-        m_Data: 58950
+        m_Data: 0
       m_IsWaitingForDelay: 0
       m_IsRenaming: 0
-      m_OriginalEventType: 0
+      m_OriginalEventType: 11
       m_IsRenamingFilename: 1
       m_TrimLeadingAndTrailingWhitespace: 0
       m_ClientGUIView: {fileID: 10}
@@ -1615,11 +1613,13 @@ MonoBehaviour:
       m_Data: 0
     m_ExpandedIDs:
     - m_Data: 0
-    - m_Data: 36152
-    - m_Data: 36154
-    - m_Data: 36156
-    - m_Data: 36158
-    - m_Data: 36160
+    - m_Data: 48802
+    - m_Data: 48804
+    - m_Data: 48806
+    - m_Data: 48808
+    - m_Data: 48810
+    - m_Data: 48812
+    - m_Data: 48814
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -1745,8 +1745,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Inspector\u200B"
   m_Pos:
     serializedVersion: 2
-    x: 1001.3334
-    y: 78.66667
+    x: 1002.3333
+    y: 24
     width: 491.00006
     height: 760.6667
   m_SerializedDataModeController:
@@ -1875,7 +1875,7 @@ MonoBehaviour:
       height: 1185.9939
     m_MinimalGUI: 1
   m_defaultScale: 0.43359372
-  m_LastWindowPixelSize: {x: 1110, y: 826}
+  m_LastWindowPixelSize: {x: 740, y: 550.6667}
   m_ClearInEditMode: 1
   m_NoCameraWarning: 1
   m_LowResolutionForAspectRatios: 01000000000100000100

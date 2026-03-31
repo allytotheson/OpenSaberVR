@@ -7,11 +7,14 @@ using VRTK;
 /// <summary>
 /// Scene loading and saber visibility. No XR/VR dependencies - uses UDP-driven sabers.
 /// Assign LeftSaber and RightSaber (UDP saber GameObjects) or they will be found by tag.
+/// Each must be the <b>hand root</b> that contains a child with <see cref="Slice"/> — desktop input moves this transform.
 /// </summary>
 public class SceneHandling : MonoBehaviour
 {
     [Header("UDP Sabers (assign or will find by tag)")]
+    [Tooltip("Root object that is parent of the Slice (blade) object. Not a separate mesh sibling to BladeProxy.")]
     public GameObject LeftSaber;
+    [Tooltip("Root object that is parent of the Slice (blade) object. Not a separate mesh sibling to BladeProxy.")]
     public GameObject RightSaber;
 
     private void Awake()

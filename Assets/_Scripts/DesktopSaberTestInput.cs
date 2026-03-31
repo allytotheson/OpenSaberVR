@@ -167,22 +167,30 @@ public class DesktopSaberTestInput : MonoBehaviour
 
     private bool ShouldUseKeyboard(GameObject saber, bool isLeft)
     {
-        var motion = saber.GetComponent<SaberMotionController>();
-        if (!preferUdpImuWhenValid || motion == null || motion.receiver == null)
+        if (!preferUdpImuWhenValid)
             return true;
-        var p = isLeft ? motion.receiver.LeftSaberData : motion.receiver.RightSaberData;
-        return !p.valid;
+        foreach (var motion in saber.GetComponentsInChildren<SaberMotionController>(true))
+        {
+            if (motion == null || motion.receiver == null)
+                continue;
+            var p = isLeft ? motion.receiver.LeftSaberData : motion.receiver.RightSaberData;
+            if (p.valid)
+                return false;
+        }
+        return true;
     }
 
     private void ApplyHand(GameObject saber, bool isLeft, Transform cam, Vector3 flatF, Vector3 flatR, bool autoAlign)
     {
-        var motion = saber.GetComponent<SaberMotionController>();
         var swing = saber.GetComponent<SwingDetector>();
         if (swing == null) swing = saber.GetComponentInChildren<SwingDetector>();
 
         bool keyboardDrives = ShouldUseKeyboard(saber, isLeft);
-        if (motion != null)
-            motion.enabled = !keyboardDrives;
+        foreach (var motion in saber.GetComponentsInChildren<SaberMotionController>(true))
+        {
+            if (motion != null)
+                motion.enabled = !keyboardDrives;
+        }
 
         if (!keyboardDrives)
             return;
