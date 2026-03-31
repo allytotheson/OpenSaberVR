@@ -57,6 +57,7 @@ public class SceneHandling : MonoBehaviour
 
     private void MenuSceneLoaded()
     {
+        DesktopSaberHandHalo.DestroyAllWorldHalos();
         if (LeftSaber != null) LeftSaber.SetActive(false);
         if (RightSaber != null) RightSaber.SetActive(false);
     }
@@ -97,6 +98,8 @@ public class SceneHandling : MonoBehaviour
 
     IEnumerator ReturnToMenuFromGameplayRoutine()
     {
+        DesktopSaberHandHalo.DestroyAllWorldHalos();
+
         var spawner = FindAnyObjectByType<NotesSpawner>();
         if (spawner != null)
         {

@@ -40,14 +40,18 @@ public static class DesktopImportedBladeMount
         if (importedExisting != null && !RendererWorldMaxExtentTooSmall(importedExisting))
         {
             SetDesktopBillboardBladeVisible(mountEarly, false);
-            DesktopSaberHandHalo.EnsureAtBladeMount(mountEarly, isLeft);
+            EnsureSlashFx(importedExisting.gameObject, isLeft);
+            ApplyImportedTeamLook(importedExisting, isLeft, cfg);
+            EnsureImportedBladeAura(importedExisting.gameObject, isLeft, cfg);
+            EnsureImportedBladeEmissionPulse(importedExisting.gameObject, cfg);
+            MaybeRingHalo(mountEarly, isLeft, cfg, true);
             return;
         }
 
         if (capsuleExisting != null && !RendererWorldMaxExtentTooSmall(capsuleExisting))
         {
             SetDesktopBillboardBladeVisible(mountEarly, true);
-            DesktopSaberHandHalo.EnsureAtBladeMount(mountEarly, isLeft);
+            MaybeRingHalo(mountEarly, isLeft, cfg, false);
             return;
         }
         if (importedExisting != null) Object.Destroy(importedExisting.gameObject);
@@ -69,6 +73,12 @@ public static class DesktopImportedBladeMount
             BoostImportedModelScaleIfNearlyInvisible(inst.transform);
             foreach (var c in inst.GetComponentsInChildren<Collider>(true))
                 Object.Destroy(c);
+            foreach (var rb in inst.GetComponentsInChildren<Rigidbody>(true))
+            {
+                rb.isKinematic = true;
+                rb.useGravity = false;
+            }
+
             foreach (var rend in inst.GetComponentsInChildren<Renderer>(true))
             {
                 rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -76,7 +86,10 @@ public static class DesktopImportedBladeMount
             }
 
             SetDesktopBillboardBladeVisible(mount, false);
-            DesktopSaberHandHalo.EnsureAtBladeMount(mount, isLeft);
+            ApplyImportedTeamLook(inst.transform, isLeft, cfg);
+            EnsureImportedBladeAura(inst, isLeft, cfg);
+            EnsureImportedBladeEmissionPulse(inst, cfg);
+            MaybeRingHalo(mount, isLeft, cfg, true);
             return;
         }
 
@@ -105,7 +118,74 @@ public static class DesktopImportedBladeMount
         }
 
         SetDesktopBillboardBladeVisible(mount, true);
-        DesktopSaberHandHalo.EnsureAtBladeMount(mount, isLeft);
+        MaybeRingHalo(mount, isLeft, cfg, false);
+    }
+
+    static void MaybeRingHalo(Transform mount, bool isLeft, NotesSpawner cfg, bool importedMesh)
+    {
+        if (cfg == null || !cfg.showDesktopRingHalos)
+            return;
+        if (importedMesh)
+            DesktopSaberHandHalo.EnsureAtBladeMount(mount, isLeft, cfg.importedHaloLocalEuler, cfg.importedHaloLocalPosition);
+        else
+            DesktopSaberHandHalo.EnsureAtBladeMount(mount, isLeft);
+    }
+
+    static void ApplyImportedTeamLook(Transform bladeRoot, bool isLeft, NotesSpawner cfg)
+    {
+        if (cfg == null || !cfg.applyImportedBladeTeamTintAndGlow || bladeRoot == null)
+            return;
+        EnsureRuntimeMaterialClones(bladeRoot);
+        var rends = bladeRoot.GetComponentsInChildren<Renderer>(true);
+        DesktopImportedBladeTeamTint.ApplyToRenderers(rends, isLeft, cfg.importedBladeTeamTintMix, cfg.importedBladeEmissionIntensity);
+    }
+
+    static void EnsureImportedBladeAura(GameObject importedRoot, bool isLeft, NotesSpawner cfg)
+    {
+        if (cfg == null || !cfg.applyImportedBladeTeamTintAndGlow || importedRoot == null || !cfg.showImportedBladeAdditiveAura)
+            return;
+        var aura = importedRoot.GetComponent<DesktopImportedBladeAura>();
+        if (aura == null)
+            aura = importedRoot.AddComponent<DesktopImportedBladeAura>();
+        aura.Configure(isLeft, cfg.importedBladeAuraAlpha, cfg.importedBladeAuraWorldScale);
+    }
+
+    static void EnsureImportedBladeEmissionPulse(GameObject importedRoot, NotesSpawner cfg)
+    {
+        if (cfg == null || importedRoot == null || cfg.importedBladeEmissionPulseHz <= 0f)
+            return;
+        var pulse = importedRoot.GetComponent<DesktopImportedBladeEmissionPulse>();
+        if (pulse == null)
+            pulse = importedRoot.AddComponent<DesktopImportedBladeEmissionPulse>();
+        pulse.frequencyHz = cfg.importedBladeEmissionPulseHz;
+        pulse.depth = cfg.importedBladeEmissionPulseDepth;
+        pulse.RebuildFromRenderers();
+    }
+
+    static void EnsureRuntimeMaterialClones(Transform bladeRoot)
+    {
+        if (bladeRoot == null || bladeRoot.GetComponent<DesktopImportedBladeRuntimeMaterials>() != null)
+            return;
+        foreach (var r in bladeRoot.GetComponentsInChildren<Renderer>(true))
+        {
+            if (r == null)
+                continue;
+            var shared = r.sharedMaterials;
+            var inst = new Material[shared.Length];
+            for (int j = 0; j < shared.Length; j++)
+                inst[j] = shared[j] != null ? new Material(shared[j]) : null;
+            r.materials = inst;
+        }
+
+        bladeRoot.gameObject.AddComponent<DesktopImportedBladeRuntimeMaterials>();
+    }
+
+    static void EnsureSlashFx(GameObject importedRoot, bool isLeft)
+    {
+        var fx = importedRoot.GetComponent<DesktopImportedBladeSlashFx>();
+        if (fx == null)
+            fx = importedRoot.AddComponent<DesktopImportedBladeSlashFx>();
+        fx.Configure(isLeft);
     }
 
     static void SetDesktopBillboardBladeVisible(Transform mount, bool visible)
@@ -211,7 +291,8 @@ public static class DesktopImportedBladeMount
             }
         }
 
-        if (left == null && right == null)
+        // Fill missing hand from slice parents by world X (fixes only LeftSaber assigned in SceneHandling, etc.).
+        if (left == null || right == null)
         {
             var parents = new List<Transform>();
             foreach (var slice in Object.FindObjectsByType<Slice>(FindObjectsInactive.Include))
@@ -225,14 +306,22 @@ public static class DesktopImportedBladeMount
                 }
                 if (!dup) parents.Add(p);
             }
+
             if (parents.Count >= 2)
             {
                 parents.Sort((a, b) => a.position.x.CompareTo(b.position.x));
-                left = parents[0].gameObject;
-                right = parents[parents.Count - 1].gameObject;
+                if (left == null)
+                    left = parents[0].gameObject;
+                if (right == null)
+                    right = parents[parents.Count - 1].gameObject;
             }
             else if (parents.Count == 1)
-                left = parents[0].gameObject;
+            {
+                if (left == null)
+                    left = parents[0].gameObject;
+                else if (right == null)
+                    right = parents[0].gameObject;
+            }
         }
 
         return left != null || right != null;

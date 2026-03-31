@@ -39,8 +39,40 @@ public class NotesSpawner : MonoBehaviour
     [Tooltip("Optional override for both hands. If empty: Editor loads Rumi sword from Assets/_Models/Lightsabers/.../Sword_01 (1).fbx; player builds need a prefab under a Resources/Lightsabers/ path (see TryLoadImportedSwordFromResources).")]
     public GameObject importedSwordVisualPrefab;
 
-    [Tooltip("If false, always use the red/blue capsule proxy instead of the imported mesh (halos still apply).")]
+    [Tooltip("If false, always use the red/blue capsule proxy instead of the imported mesh.")]
     public bool useImportedModelWhenAssigned = true;
+
+    [Tooltip("Desktop: concentric line halos (often look like bullseyes). Off by default — use team tint on the blade instead.")]
+    public bool showDesktopRingHalos = false;
+
+    [Tooltip("Desktop: tint and emission on imported sword materials (left red / right blue).")]
+    public bool applyImportedBladeTeamTintAndGlow = true;
+
+    [Range(0f, 1f)]
+    [Tooltip("How much albedo is replaced with team color before emission.")]
+    public float importedBladeTeamTintMix = 0.42f;
+
+    [Tooltip("HDR-style emission strength on team color (needs emission on shader). Same idea as multiplying Emission in Shader Graph.")]
+    [Min(0f)]
+    public float importedBladeEmissionIntensity = 4.5f;
+
+    [Tooltip("Oscillates material emission at runtime (0 = off). C# equivalent of sin(Time) * emission.")]
+    [Min(0f)]
+    public float importedBladeEmissionPulseHz = 0f;
+
+    [Range(0f, 1f)]
+    [Tooltip("How strong the pulse modulates emission when pulse Hz > 0.")]
+    public float importedBladeEmissionPulseDepth = 0.28f;
+
+    [Tooltip("Desktop: extra semi-transparent quad that billboards toward the camera for a visible glow.")]
+    public bool showImportedBladeAdditiveAura = true;
+
+    [Range(0f, 1f)]
+    public float importedBladeAuraAlpha = 0.48f;
+
+    [Tooltip("Multiplies combined renderer bounds so the aura slightly wraps the mesh.")]
+    [Min(0.5f)]
+    public float importedBladeAuraWorldScale = 1.15f;
 
     [Tooltip("Local pose on the Slice transform.")]
     public Vector3 importedBladeLocalPosition = Vector3.zero;
@@ -49,6 +81,12 @@ public class NotesSpawner : MonoBehaviour
 
     [Tooltip("Try 0.01 if the model is huge (cm units).")]
     public Vector3 importedBladeLocalScale = Vector3.one;
+
+    [Tooltip("Desktop only: extra rotation for halo rings in Slice local space (try e.g. 90,0,0 if rings look edge-on).")]
+    public Vector3 importedHaloLocalEuler = Vector3.zero;
+
+    [Tooltip("Desktop only: halo offset in Slice local space (e.g. slide along the blade). Halo follows the same transform as hits.")]
+    public Vector3 importedHaloLocalPosition = Vector3.zero;
 
     public Vector3 fallbackCapsuleLocalOffset = new Vector3(0f, 0f, 0.38f);
 

@@ -7,6 +7,18 @@ public static class DesktopSaberHandHalo
 {
     public const string HaloRootName = "DesktopSaberHalo";
 
+    /// <summary>Destroys all desktop ring halos (unparented roots). Call when leaving gameplay so they never linger on the menu.</summary>
+    public static void DestroyAllWorldHalos()
+    {
+        var followers = Object.FindObjectsByType<DesktopSaberHaloWorldFollower>(FindObjectsInactive.Include);
+        for (int i = 0; i < followers.Length; i++)
+        {
+            var f = followers[i];
+            if (f != null)
+                Object.Destroy(f.gameObject);
+        }
+    }
+
     /// <summary>World-space ring radii before compensating for tiny Slice lossy scale.</summary>
     public static float innerRingRadiusWorld = 0.14f;
 
@@ -16,30 +28,43 @@ public static class DesktopSaberHandHalo
 
     public static float outerLineWidthWorld = 0.052f;
 
-    public static void EnsureAtBladeMount(Transform mount, bool isLeft)
+    /// <summary>Extra wide red (or blue) bloom ring for visibility.</summary>
+    public static float bloomRingRadiusWorld = 0.48f;
+
+    public static float bloomLineWidthWorld = 0.09f;
+
+    /// <param name="mount">Slice transform (blade mount). Halo is not parented here — see <see cref="DesktopSaberHaloWorldFollower"/> — so FBX / rig scale does not crush LineRenderer width.</param>
+    public static void EnsureAtBladeMount(Transform mount, bool isLeft, Vector3 haloLocalEuler = default, Vector3 haloLocalPosition = default)
     {
         if (mount == null || GameplayCameraEnsurer.IsXrDeviceActive())
             return;
 
         RemoveAllHalosUnder(mount);
+        DestroyWorldHalosFollowing(mount);
 
         var root = new GameObject(HaloRootName);
-        root.transform.SetParent(mount, false);
-        root.transform.localPosition = Vector3.zero;
-        root.transform.localRotation = Quaternion.identity;
-        root.transform.localScale = Vector3.one;
+        root.transform.SetParent(null, false);
 
-        Color core = isLeft ? new Color(1f, 0.12f, 0.22f, 0.98f) : new Color(0.12f, 0.48f, 1f, 0.98f);
-        Color glow = isLeft ? new Color(1f, 0.4f, 0.5f, 0.62f) : new Color(0.38f, 0.72f, 1f, 0.62f);
+        var follower = root.AddComponent<DesktopSaberHaloWorldFollower>();
+        follower.follow = mount;
+        follower.localPosition = haloLocalPosition;
+        follower.localRotation = Quaternion.Euler(haloLocalEuler);
+
+        Color core = isLeft ? new Color(1f, 0.08f, 0.18f, 1f) : new Color(0.08f, 0.42f, 1f, 1f);
+        Color glow = isLeft ? new Color(1f, 0.35f, 0.45f, 0.78f) : new Color(0.32f, 0.68f, 1f, 0.78f);
+        Color bloom = isLeft ? new Color(1f, 0.2f, 0.28f, 0.45f) : new Color(0.22f, 0.55f, 1f, 0.45f);
 
         float u = UniformLossy(mount);
         float rIn = innerRingRadiusWorld / u;
         float rOut = outerRingRadiusWorld / u;
+        float rBloom = bloomRingRadiusWorld / u;
         float wIn = innerLineWidthWorld / u;
         float wOut = outerLineWidthWorld / u;
+        float wBloom = bloomLineWidthWorld / u;
 
         BuildRing(root.transform, "HaloInner", rIn, wIn, core, 48);
         BuildRing(root.transform, "HaloOuter", rOut, wOut, glow, 64);
+        BuildRing(root.transform, "HaloBloom", rBloom, wBloom, bloom, 72);
     }
 
     static float UniformLossy(Transform t)
@@ -60,6 +85,17 @@ public static class DesktopSaberHandHalo
         }
     }
 
+    static void DestroyWorldHalosFollowing(Transform mount)
+    {
+        var followers = Object.FindObjectsByType<DesktopSaberHaloWorldFollower>(FindObjectsInactive.Include);
+        for (int i = 0; i < followers.Length; i++)
+        {
+            var f = followers[i];
+            if (f != null && f.follow == mount)
+                Object.Destroy(f.gameObject);
+        }
+    }
+
     static void BuildRing(Transform parent, string objectName, float radius, float width, Color color, int segments)
     {
         var go = new GameObject(objectName);
@@ -75,6 +111,7 @@ public static class DesktopSaberHandHalo
         lr.widthMultiplier = width;
         lr.numCornerVertices = 4;
         lr.numCapVertices = 4;
+        lr.sortingOrder = 32000;
         for (int i = 0; i < segments; i++)
         {
             float a = i * Mathf.PI * 2f / segments;

@@ -16,10 +16,10 @@ public class DemonHitDetector : MonoBehaviour
     public float rayLength = 10f;
 
     [Tooltip("Sphere around saber during a swing — keep modest so we rely on the hit plane, not huge reach.")]
-    public float overlapRadius = 1.45f;
+    public float overlapRadius = 1.95f;
 
     [Tooltip("Extra radius scale during Z/X keyboard pulse (forgiving timing).")]
-    public float keyboardPulseOverlapScale = 1.35f;
+    public float keyboardPulseOverlapScale = 2.05f;
 
     [Tooltip("Block must be within ±this many meters of the cyan hit plane (along camera forward) to count as a hit.")]
     public float hitPlaneDepthHalfWindow = 0.22f;
@@ -44,7 +44,7 @@ public class DemonHitDetector : MonoBehaviour
     public bool triggerHitsSkipPlaneCheck = true;
 
     [Tooltip("World-space radius for the hit trigger (centered on the Slice).")]
-    public float triggerHitRadius = 1.35f;
+    public float triggerHitRadius = 2.35f;
 
     public Vector3 triggerHitCenter = Vector3.zero;
 

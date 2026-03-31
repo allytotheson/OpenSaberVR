@@ -41,9 +41,18 @@ public class DesktopSaberTestInput : MonoBehaviour
     [Tooltip("Diagonal in the vertical swing plane: 45 ≈ top-to-bottom slash feel vs track.")]
     [Range(15f, 75f)] public float slashDiagonalDegrees = 45f;
 
-    [Tooltip("Offset from camera (local space): wider X = more 'held out to the side'.")]
-    public Vector3 leftHandLocal = new Vector3(-0.48f, -0.08f, 0.78f);
-    public Vector3 rightHandLocal = new Vector3(0.48f, -0.08f, 0.78f);
+    [Tooltip("Offset from camera (local space): wider |X| = hilts farther left/right.")]
+    public Vector3 leftHandLocal = new Vector3(-0.72f, -0.11f, 0.72f);
+    public Vector3 rightHandLocal = new Vector3(0.72f, -0.11f, 0.72f);
+
+    [Header("Desktop blade aim")]
+    [Range(0f, 1f)]
+    [Tooltip("Tips aim toward screen center / blocks; 0 keeps the old mostly-down-track diagonal.")]
+    public float desktopBladeTipInwardBlend = 0.58f;
+
+    [Range(0f, 1f)]
+    [Tooltip("Caps block-arrow rotation on desktop so sabers keep an inward V. Use 1 for full block matching (old behavior).")]
+    public float desktopMaxNoteRotationBlend = 0.48f;
 
     [Tooltip("Push aligned point slightly toward camera from the block.")]
     public float pullTowardCameraFromBlock = 0.26f;
@@ -216,6 +225,8 @@ public class DesktopSaberTestInput : MonoBehaviour
                     blend = Mathf.Clamp01(Mathf.Max(blend, 0.52f));
                 targetPos = Vector3.Lerp(anchor, aligned, blend);
                 float rotBlend = alignSaberRotationToBlockArrow ? 1f : noteRotationBlend;
+                if (nonXrDesktop)
+                    rotBlend = Mathf.Min(rotBlend, Mathf.Clamp01(desktopMaxNoteRotationBlend));
                 targetRot = Quaternion.Slerp(humanHold, noteRot, rotBlend);
 
                 if (autoPulseSwingNearNote && swing != null)
@@ -321,6 +332,18 @@ public class DesktopSaberTestInput : MonoBehaviour
         if (bladeAlong.sqrMagnitude < 1e-6f)
             bladeAlong = flatF;
 
+        float inwardBlend = Mathf.Clamp01(desktopBladeTipInwardBlend);
+        if (inwardBlend > 0.001f)
+        {
+            Vector3 towardCenter = isLeft ? flatR : -flatR;
+            Vector3 inwardInPlane = Vector3.ProjectOnPlane(towardCenter, sliceNormal);
+            if (inwardInPlane.sqrMagnitude > 1e-6f)
+            {
+                inwardInPlane.Normalize();
+                bladeAlong = Vector3.Slerp(bladeAlong, inwardInPlane, inwardBlend).normalized;
+            }
+        }
+
         return Quaternion.LookRotation(bladeAlong, sliceNormal);
     }
 
@@ -360,7 +383,7 @@ public class DesktopSaberTestInput : MonoBehaviour
             }
         }
 
-        if (left == null && right == null)
+        if (left == null || right == null)
         {
             var parents = new List<Transform>();
             foreach (var slice in UnityEngine.Object.FindObjectsByType<Slice>(FindObjectsInactive.Include))
@@ -374,15 +397,21 @@ public class DesktopSaberTestInput : MonoBehaviour
                 }
                 if (!dup) parents.Add(p);
             }
+
             if (parents.Count >= 2)
             {
                 parents.Sort((a, b) => a.position.x.CompareTo(b.position.x));
-                left = parents[0].gameObject;
-                right = parents[parents.Count - 1].gameObject;
+                if (left == null)
+                    left = parents[0].gameObject;
+                if (right == null)
+                    right = parents[parents.Count - 1].gameObject;
             }
             else if (parents.Count == 1)
             {
-                left = parents[0].gameObject;
+                if (left == null)
+                    left = parents[0].gameObject;
+                else if (right == null)
+                    right = parents[0].gameObject;
             }
         }
 
