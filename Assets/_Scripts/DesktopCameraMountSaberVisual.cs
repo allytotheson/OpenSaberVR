@@ -165,9 +165,7 @@ public class DesktopCameraMountSaberVisual : MonoBehaviour
         proxy.SetParent(null, false);
 
         var rend = go.GetComponent<MeshRenderer>();
-        Shader sh = Shader.Find("Universal Render Pipeline/Unlit")
-                    ?? Shader.Find("Unlit/Color")
-                    ?? Shader.Find("Sprites/Default");
+        Shader sh = RenderingShaderUtil.UnlitForWorldMeshes();
         var mat = new Material(sh);
         Color c = isLeft ? new Color(1f, 0.22f, 0.28f, 1f) : new Color(0.22f, 0.58f, 1f, 1f);
         if (mat.HasProperty("_BaseColor"))

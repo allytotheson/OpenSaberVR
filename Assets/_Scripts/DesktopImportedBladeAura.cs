@@ -77,9 +77,7 @@ public sealed class DesktopImportedBladeAura : MonoBehaviour
             return;
         }
 
-        Shader sh = Shader.Find("Sprites/Default")
-                    ?? Shader.Find("Unlit/Color")
-                    ?? Shader.Find("Universal Render Pipeline/Unlit");
+        Shader sh = RenderingShaderUtil.UnlitForWorldMeshes();
         if (sh == null)
             return;
 

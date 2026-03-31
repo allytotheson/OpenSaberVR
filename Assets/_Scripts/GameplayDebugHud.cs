@@ -104,7 +104,8 @@ public class GameplayDebugHud : MonoBehaviour
         panelRt.sizeDelta = new Vector2(300f, 248f);
 
         var panelBg = panel.AddComponent<Image>();
-        panelBg.color = new Color(0.06f, 0.07f, 0.1f, 0.94f);
+        // Fully opaque so the panel never reads as a milky haze over the scene (Overlay still draws crisp).
+        panelBg.color = new Color(0.05f, 0.055f, 0.08f, 1f);
 
         var vlg = panel.AddComponent<VerticalLayoutGroup>();
         vlg.padding = new RectOffset(10, 10, 10, 10);
@@ -184,7 +185,7 @@ public class GameplayDebugHud : MonoBehaviour
         le.minHeight = 36f;
 
         var img = go.AddComponent<Image>();
-        img.color = new Color(0.18f, 0.22f, 0.32f, 1f);
+        img.color = new Color(0.14f, 0.17f, 0.24f, 1f);
 
         var btn = go.AddComponent<Button>();
         var colors = btn.colors;

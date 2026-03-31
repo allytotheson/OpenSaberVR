@@ -35,6 +35,8 @@ public sealed class DesktopBuiltInPostStackEnsurer : MonoBehaviour
 
     void TryInstall()
     {
+        if (RenderingShaderUtil.UsesScriptableRenderPipeline)
+            return;
         if (GameplayCameraEnsurer.IsXrDeviceActive())
             return;
         if (!GameplayCameraEnsurer.TryGetPreferredCamera(out Camera cam) || cam == null)

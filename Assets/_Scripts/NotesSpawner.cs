@@ -54,7 +54,7 @@ public class NotesSpawner : MonoBehaviour
 
     [Tooltip("HDR-style emission strength on team color (needs emission on shader). Same idea as multiplying Emission in Shader Graph.")]
     [Min(0f)]
-    public float importedBladeEmissionIntensity = 4.5f;
+    public float importedBladeEmissionIntensity = 8f;
 
     [Tooltip("Oscillates material emission at runtime (0 = off). C# equivalent of sin(Time) * emission.")]
     [Min(0f)]
@@ -68,7 +68,8 @@ public class NotesSpawner : MonoBehaviour
     public bool showImportedBladeAdditiveAura = true;
 
     [Range(0f, 1f)]
-    public float importedBladeAuraAlpha = 0.48f;
+    [Tooltip("Lower = less full-screen glow bleed from saber aura quads.")]
+    public float importedBladeAuraAlpha = 0.36f;
 
     [Tooltip("Multiplies combined renderer bounds so the aura slightly wraps the mesh.")]
     [Min(0.5f)]

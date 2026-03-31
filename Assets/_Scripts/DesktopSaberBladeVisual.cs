@@ -110,16 +110,7 @@ public class DesktopSaberBladeVisual : MonoBehaviour
         return t.CompareTag("LeftSaber");
     }
 
-    static Shader ResolveBillboardShader()
-    {
-        Shader sh = Shader.Find("Sprites/Default");
-        if (sh == null) sh = Shader.Find("Unlit/Color");
-        if (sh == null) sh = Shader.Find("Universal Render Pipeline/Unlit");
-        if (sh == null) sh = Shader.Find("HDRP/Unlit");
-        if (sh == null) sh = Shader.Find("Legacy Shaders/Transparent/Diffuse");
-        if (sh == null) sh = Shader.Find("Hidden/InternalErrorShader");
-        return sh;
-    }
+    static Shader ResolveBillboardShader() => RenderingShaderUtil.UnlitForWorldMeshes();
 
     Transform BuildQuad(string objectName, Color color, int renderQueue, out Material mat)
     {

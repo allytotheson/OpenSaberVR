@@ -104,9 +104,7 @@ public static class DesktopImportedBladeMount
         var r = cap.GetComponent<Renderer>();
         if (r != null)
         {
-            Shader sh = Shader.Find("Universal Render Pipeline/Unlit")
-                        ?? Shader.Find("Unlit/Color")
-                        ?? Shader.Find("Sprites/Default");
+            Shader sh = RenderingShaderUtil.UnlitForWorldMeshes();
             if (sh != null)
             {
                 var m = new Material(sh);

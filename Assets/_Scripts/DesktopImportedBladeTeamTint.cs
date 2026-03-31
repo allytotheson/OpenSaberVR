@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 /// <summary>
 /// Applies left/right team tint and emission to imported sword materials (desktop).
@@ -25,12 +26,12 @@ public static class DesktopImportedBladeTeamTint
                 continue;
             Material[] mats = r.materials;
             for (int m = 0; m < mats.Length; m++)
-                ApplyToMaterial(mats[m], team, tintMix, emissionHdr);
+                ApplyToMaterial(mats[m], team, tintMix, emissionHdr, emissionIntensity);
             r.materials = mats;
         }
     }
 
-    static void ApplyToMaterial(Material m, Color team, float tintMix, Color emissionHdr)
+    static void ApplyToMaterial(Material m, Color team, float tintMix, Color emissionHdr, float emissionScalar)
     {
         if (m == null)
             return;
@@ -58,7 +59,7 @@ public static class DesktopImportedBladeTeamTint
         {
             m.SetColor(EmissiveColorId, emissionHdr);
             if (m.HasProperty(EmissiveIntensityId))
-                m.SetFloat(EmissiveIntensityId, Mathf.Max(m.GetFloat(EmissiveIntensityId), 1f));
+                m.SetFloat(EmissiveIntensityId, Mathf.Clamp(emissionScalar, 1.25f, 12f));
         }
     }
 }

@@ -119,9 +119,7 @@ public static class DesktopSaberHandHalo
             lr.SetPosition(i, new Vector3(Mathf.Cos(a) * radius, Mathf.Sin(a) * radius, 0f));
         }
 
-        Shader sh = Shader.Find("Sprites/Default")
-                    ?? Shader.Find("Unlit/Color")
-                    ?? Shader.Find("Universal Render Pipeline/Unlit");
+        Shader sh = RenderingShaderUtil.UnlitForWorldMeshes();
         var mat = new Material(sh);
         if (mat.HasProperty("_BaseColor"))
             mat.SetColor("_BaseColor", color);

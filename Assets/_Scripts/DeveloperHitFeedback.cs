@@ -20,9 +20,7 @@ public static class DeveloperHitFeedback
             var r = p.GetComponent<Renderer>();
             if (r != null)
             {
-                var m = new Material(Shader.Find("Universal Render Pipeline/Unlit")
-                                      ?? Shader.Find("Unlit/Color")
-                                      ?? Shader.Find("Sprites/Default"));
+                var m = new Material(RenderingShaderUtil.UnlitForWorldMeshes());
                 if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", tint);
                 if (m.HasProperty("_Color")) m.SetColor("_Color", tint);
                 r.sharedMaterial = m;

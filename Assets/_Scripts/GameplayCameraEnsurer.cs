@@ -30,6 +30,8 @@ public sealed class GameplayCameraEnsurer : MonoBehaviour
 #if UNITY_EDITOR || UNITY_STANDALONE
         if (go.GetComponent<DesktopBuiltInPostStackEnsurer>() == null)
             go.AddComponent<DesktopBuiltInPostStackEnsurer>();
+        if (go.GetComponent<DesktopUrpGameplayPostProcessing>() == null)
+            go.AddComponent<DesktopUrpGameplayPostProcessing>();
 #endif
         GameplayDebugHud.EnsureCreated(go.transform);
         Ensure();

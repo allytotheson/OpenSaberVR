@@ -312,9 +312,7 @@ public class BeatSaberHitLineGuide : MonoBehaviour
         lr.startWidth = 0.055f;
         lr.endWidth = 0.055f;
         lr.useWorldSpace = true;
-        Shader sh = Shader.Find("Sprites/Default");
-        if (sh == null) sh = Shader.Find("Unlit/Color");
-        if (sh == null) sh = Shader.Find("Universal Render Pipeline/Unlit");
+        Shader sh = RenderingShaderUtil.UnlitForWorldMeshes();
         if (sh != null)
             lr.material = new Material(sh);
         lr.startColor = lineColor;
@@ -357,10 +355,7 @@ public class BeatSaberHitLineGuide : MonoBehaviour
         _fillMesh.MarkDynamic();
         _fillMf.sharedMesh = _fillMesh;
 
-        Shader sh = lineShader;
-        if (sh == null) sh = Shader.Find("Sprites/Default");
-        if (sh == null) sh = Shader.Find("Unlit/Color");
-        if (sh == null) sh = Shader.Find("Universal Render Pipeline/Unlit");
+        Shader sh = lineShader != null ? lineShader : RenderingShaderUtil.UnlitForWorldMeshes();
         _fillMat = new Material(sh);
         if (_fillMat.HasProperty("_Color"))
             _fillMat.SetColor("_Color", planeFillColor);
