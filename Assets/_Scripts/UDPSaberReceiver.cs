@@ -1,13 +1,14 @@
 using System;
+using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using UnityEngine;
 
 /// <summary>
-/// Receives IMU data (accelerometer + gyroscope) over UDP from Raspberry Pi Pico W controllers.
-/// Supports two sabers via separate UDP ports.
-/// Expected packet format: "ax,ay,az,gx,gy,gz" (comma-separated, MPU6050 units: g for accel, deg/s for gyro)
+/// Receives IMU + optional joystick/button from Raspberry Pi Pico W over UDP (two ports for two hands).
+/// Formats: "ax,ay,az,gx,gy,gz" or extended "ax,ay,az,gx,gy,gz,jx,jy,sw" (jx,jy normalized 0..1, sw 1=select pressed).
+/// See PicoW_Controller_Reference.txt.
 /// </summary>
 public class UDPSaberReceiver : MonoBehaviour
 {
@@ -45,6 +46,12 @@ public class UDPSaberReceiver : MonoBehaviour
         public Vector3 angularVelocity; // deg/s
         public float timestamp;
         public bool valid;
+        /// <summary>Normalized 0..1 from ADC (packet fields 7–8). Meaningful when <see cref="hasControllerExtras"/>.</summary>
+        public float joystickX;
+        public float joystickY;
+        /// <summary>True when packet field 9 &gt; 0.5 (e.g. SW pressed sent as 1).</summary>
+        public bool selectPressed;
+        public bool hasControllerExtras;
     }
 
     void Start()
@@ -76,7 +83,10 @@ public class UDPSaberReceiver : MonoBehaviour
             Debug.LogWarning($"[UDPSaberReceiver] Right saber port {rightSaberPort}: {e.Message}");
         }
 
-        Debug.Log($"[UDPSaberReceiver] Listening on ports {leftSaberPort} (left), {rightSaberPort} (right). Expect format: ax,ay,az,gx,gy,gz");
+        Debug.Log($"[UDPSaberReceiver] Listening on ports {leftSaberPort} (left), {rightSaberPort} (right). Format: ax,ay,az,gx,gy,gz[,jx,jy,sw]");
+
+        if (GetComponent<UdpMenuNavigation>() == null)
+            gameObject.AddComponent<UdpMenuNavigation>();
     }
 
     private void ReceiveLoop(UdpClient client, object lockObj, Action<IMUPacket> setData)
@@ -98,7 +108,7 @@ public class UDPSaberReceiver : MonoBehaviour
     }
 
     /// <summary>
-    /// Parse "ax,ay,az,gx,gy,gz" format. Also supports space-separated or JSON-like formats.
+    /// Parse "ax,ay,az,gx,gy,gz" or extended "... ,jx,jy,sw" (jx,jy in 0..1, sw 1 = pressed).
     /// </summary>
     public static IMUPacket ParsePacket(string raw)
     {
@@ -108,17 +118,37 @@ public class UDPSaberReceiver : MonoBehaviour
         string s = raw.Trim();
         char[] sep = { ',', ' ', '\t' };
         string[] parts = s.Split(sep, StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length >= 6)
+        if (parts.Length < 6)
+            return p;
+
+        var inv = CultureInfo.InvariantCulture;
+        if (!float.TryParse(parts[0], NumberStyles.Float, inv, out float ax) ||
+            !float.TryParse(parts[1], NumberStyles.Float, inv, out float ay) ||
+            !float.TryParse(parts[2], NumberStyles.Float, inv, out float az) ||
+            !float.TryParse(parts[3], NumberStyles.Float, inv, out float gx) ||
+            !float.TryParse(parts[4], NumberStyles.Float, inv, out float gy) ||
+            !float.TryParse(parts[5], NumberStyles.Float, inv, out float gz))
+            return p;
+
+        p.acceleration = new Vector3(ax, ay, az);
+        p.angularVelocity = new Vector3(gx, gy, gz);
+        p.valid = true;
+        p.joystickX = 0.5f;
+        p.joystickY = 0.5f;
+        p.selectPressed = false;
+        p.hasControllerExtras = false;
+
+        if (parts.Length >= 9 &&
+            float.TryParse(parts[6], NumberStyles.Float, inv, out float jx) &&
+            float.TryParse(parts[7], NumberStyles.Float, inv, out float jy) &&
+            float.TryParse(parts[8], NumberStyles.Float, inv, out float sw))
         {
-            if (float.TryParse(parts[0], out float ax) && float.TryParse(parts[1], out float ay) &&
-                float.TryParse(parts[2], out float az) && float.TryParse(parts[3], out float gx) &&
-                float.TryParse(parts[4], out float gy) && float.TryParse(parts[5], out float gz))
-            {
-                p.acceleration = new Vector3(ax, ay, az);
-                p.angularVelocity = new Vector3(gx, gy, gz);
-                p.valid = true;
-            }
+            p.joystickX = Mathf.Clamp01(jx);
+            p.joystickY = Mathf.Clamp01(jy);
+            p.selectPressed = sw > 0.5f;
+            p.hasControllerExtras = true;
         }
+
         return p;
     }
 

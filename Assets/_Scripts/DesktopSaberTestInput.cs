@@ -375,9 +375,17 @@ public class DesktopSaberTestInput : MonoBehaviour
             right = sceneHandling.RightSaber;
         }
         if (left == null)
+        {
             left = GameObject.FindGameObjectWithTag("LeftSaber");
+            if (left == null)
+                left = SceneHandling.FindWithTagIncludingInactive("LeftSaber");
+        }
         if (right == null)
+        {
             right = GameObject.FindGameObjectWithTag("RightSaber");
+            if (right == null)
+                right = SceneHandling.FindWithTagIncludingInactive("RightSaber");
+        }
         if (left == null || right == null)
         {
             foreach (var slice in UnityEngine.Object.FindObjectsByType<Slice>(FindObjectsInactive.Include))

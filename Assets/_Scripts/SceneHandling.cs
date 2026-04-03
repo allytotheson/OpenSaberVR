@@ -21,6 +21,23 @@ public class SceneHandling : MonoBehaviour
     {
         SuppressVrtkSdkLoadWhenNoHeadset();
         GameplayCameraEnsurer.Ensure();
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    void OnDestroy()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name != "OpenSaber")
+            return;
+        var sh = Object.FindAnyObjectByType<SceneHandling>();
+        if (sh == null)
+            return;
+        sh.EnsureSaberRefs();
+        sh.SaberSceneLoaded();
     }
 
     private static void SuppressVrtkSdkLoadWhenNoHeadset()
@@ -48,14 +65,29 @@ public class SceneHandling : MonoBehaviour
     {
         if (LeftSaber == null)
         {
-            var left = GameObject.FindGameObjectWithTag("LeftSaber");
-            if (left != null) LeftSaber = left;
+            LeftSaber = GameObject.FindGameObjectWithTag("LeftSaber");
+            if (LeftSaber == null)
+                LeftSaber = FindWithTagIncludingInactive("LeftSaber");
         }
         if (RightSaber == null)
         {
-            var right = GameObject.FindGameObjectWithTag("RightSaber");
-            if (right != null) RightSaber = right;
+            RightSaber = GameObject.FindGameObjectWithTag("RightSaber");
+            if (RightSaber == null)
+                RightSaber = FindWithTagIncludingInactive("RightSaber");
         }
+    }
+
+    /// <summary><see cref="GameObject.FindGameObjectWithTag"/> skips inactive objects; saber roots are often disabled on the menu.</summary>
+    public static GameObject FindWithTagIncludingInactive(string tag)
+    {
+        if (string.IsNullOrEmpty(tag))
+            return null;
+        foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include))
+        {
+            if (t != null && t.CompareTag(tag))
+                return t.gameObject;
+        }
+        return null;
     }
 
     private void MenuSceneLoaded()
@@ -68,8 +100,30 @@ public class SceneHandling : MonoBehaviour
     private void SaberSceneLoaded()
     {
         EnsureSaberRefs();
-        if (LeftSaber != null) LeftSaber.SetActive(true);
-        if (RightSaber != null) RightSaber.SetActive(true);
+        if (LeftSaber != null)
+        {
+            EnsureAncestorsActive(LeftSaber.transform);
+            LeftSaber.SetActive(true);
+        }
+        if (RightSaber != null)
+        {
+            EnsureAncestorsActive(RightSaber.transform);
+            RightSaber.SetActive(true);
+        }
+    }
+
+    /// <summary>SteamVR/VRTK often disable controller branches; children stay inactive even if the saber GO is set active.</summary>
+    public static void EnsureAncestorsActive(Transform leaf)
+    {
+        if (leaf == null) return;
+        var chain = new System.Collections.Generic.List<Transform>();
+        for (Transform t = leaf; t != null; t = t.parent)
+            chain.Add(t);
+        for (int i = chain.Count - 1; i >= 0; i--)
+        {
+            if (!chain[i].gameObject.activeSelf)
+                chain[i].gameObject.SetActive(true);
+        }
     }
 
     internal IEnumerator LoadScene(string sceneName, LoadSceneMode mode)
@@ -90,7 +144,7 @@ public class SceneHandling : MonoBehaviour
     internal bool IsSceneLoaded(string sceneName)
     {
         var scene = SceneManager.GetSceneByName(sceneName);
-        return scene.name != null;
+        return scene.IsValid() && scene.isLoaded;
     }
 
     /// <summary>Unloads <c>OpenSaber</c>, reloads <c>Menu</c> additively, stops gameplay audio, restores menu UI.</summary>

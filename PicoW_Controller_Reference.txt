@@ -1,0 +1,186 @@
+================================================================================
+OpenSaberVR — Raspberry Pi Pico W handheld controller (reference)
+================================================================================
+Last updated for: MicroPython v1.27+, Pico W, MPU6050 (I2C), analog joystick.
+
+--------------------------------------------------------------------------------
+0) DESKTOP SABERS NOT VISIBLE — common causes (check in order)
+--------------------------------------------------------------------------------
+  • Not in gameplay — Blade proxies / billboards are created after OpenSaber
+    loads and a beatmap runs. Main menu often hides sabers. Start a song.
+
+  • No Slice in scene at bootstrap — SaberGameplayBootstrap needs two saber
+    roots each parenting a Slice. If SceneHandling points only at mesh objects
+    without Slice, alignment/visuals can break. Use the hand roots that own
+    the Slice (or BladeProxy_* after bootstrap).
+
+  • Prefer Udp Imu When Valid + no UDP — SaberMotionController keeps the last
+    pose; if that pose is wrong or first packet never arrives, hands can sit
+    off-camera. Either send UDP, or turn OFF Prefer Udp Imu When Valid on
+    DesktopSaberTestInput so keyboard alignment runs.
+
+  • Saber refs null while hands are disabled — On the menu, LeftSaber/RightSaber
+    are often inactive; GameObject.FindGameObjectWithTag skips them. SceneHandling
+    and DesktopSaberTestInput now resolve tags with inactive search so OpenSaber
+    can still wire desktop/UDP sabers after load.
+
+  • Camera not resolved — DesktopSaberBladeVisual billboards need
+    DesktopGameplayCamera.TryGet to succeed. Ensure a gameplay camera exists
+    (e.g. Main Camera / FallbackCamera_NonVR) and URP/Built-in has an Unlit
+    shader (RenderingShaderUtil). Missing shader → quads never draw.
+
+  • Imported mesh hides proxy — NotesSpawner can hide capsule/billboard when
+    an imported blade is present but the mesh is tiny or wrong layer — check
+    useImportedModelWhenAssigned and the sword prefab scale.
+
+  • Culling / layer — Rare: saber layer excluded from camera culling mask.
+
+  • Console — Look for [UDPSaberReceiver] warnings (port in use, parse errors).
+
+--------------------------------------------------------------------------------
+1) WIRING — MPU6050 (I2C0)
+--------------------------------------------------------------------------------
+  MPU6050 pin    Pico W pin (board label)
+  -----------    ------------------------------------------
+  VCC            3V3 (OUT) — Pin 36
+  GND            GND (any GND)
+  SDA            GP4 — Pin 6  (I2C0 SDA)
+  SCL            GP5 — Pin 7  (I2C0 SCL)
+
+  I2C scan should report device address 104 (0x68).
+
+  Example MicroPython bus:
+    from machine import Pin, I2C
+    i2c = I2C(0, scl=Pin(5), sda=Pin(4), freq=400000)
+
+--------------------------------------------------------------------------------
+2) WIRING — Analog joystick + push button
+--------------------------------------------------------------------------------
+  Joystick pin   Pico W pin
+  ------------   ------------------------------------------
+  VRx            GP26 — Pin 31 (ADC0; only GP26–GP28 are ADC on Pico)
+  VRy            GP27 — Pin 32 (ADC1)
+  SW (button)    GP16 — Pin 21 (digital input, use internal pull-up)
+  VCC            3V3 (OUT)
+  GND            GND
+
+  SW: Pin.IN + PULL_UP → released = 1, pressed = 0.
+
+  Unity convention for UDP field sw:
+    Send 1 when pressed, 0 when released (invert in firmware if you read raw 0/1).
+
+  Safety: do not feed 5V from the joystick module into Pico GPIO (3.3 V logic).
+
+--------------------------------------------------------------------------------
+3) UNITY — UDP packet format (UDPSaberReceiver.cs)
+--------------------------------------------------------------------------------
+  Ports: Left = 5000, Right = 5001 (Inspector).
+
+  Minimum (IMU only), six floats — use a dot as decimal separator:
+    ax,ay,az,gx,gy,gz
+    accel in g, gyro in deg/s (as your MPU6050 library reports).
+
+  Extended (IMU + joystick + select), nine floats:
+    ax,ay,az,gx,gy,gz,jx,jy,sw
+
+    jx, jy — normalized 0.0 … 1.0 (map Pico read_u16() / 65535).
+    sw     — 1.0 = select pressed, 0.0 = released.
+
+  Unity uses InvariantCulture parsing (always use "." not "," for decimals).
+
+  Scripts:
+    • UdpMenuNavigation (auto-added next to UDPSaberReceiver) — menu test path:
+      nine-field packets only. Left port: jx left/right = options, sw = confirm.
+      Home uses MainMenu HomeScreenButtonStart / HomeScreenButtonExit (Btn_Start /
+      Btn_Exit are canvas siblings of Title). No-songs: sw = Exit/back. Song list:
+      jx = Prev/Next (repeat), sw = LoadSong; difficulty panel: jx picks row, sw = pick.
+      Disable via Enable Navigation.
+    • UdpSelectToSwingBridge (auto-added on Spawner when UDPSaberReceiver
+      exists) — rising edge on sw pulses SwingDetector (like a slash).
+    • SaberMotionController — optional "Apply Joystick Nudge From Udp" moves
+      the saber a bit with jx,jy (camera right/up).
+
+--------------------------------------------------------------------------------
+4) UNITY — motion path (IMU → saber)
+--------------------------------------------------------------------------------
+  • UDPSaberReceiver on a persistent GameObject (e.g. SceneHandling).
+
+  • SaberMotionController on each hand/saber root:
+      Hand = Left/Right, Receiver assigned, Saber Transform = object to move.
+
+  • DesktopSaberTestInput on Spawner (OpenSaber):
+      Prefer Udp Imu When Valid = ON only when Pico sends valid packets often;
+      otherwise leave OFF so desktop alignment shows sabers in view.
+
+--------------------------------------------------------------------------------
+5) STEPS — Connect Pico W to Unity (same LAN as your PC)
+--------------------------------------------------------------------------------
+  A) PC IPv4 from ipconfig.
+  B) Pico: WLAN STA, connect Wi‑Fi, print wlan.ifconfig()[0].
+  C) Windows Firewall: allow inbound UDP 5000 and 5001 for Unity.
+  D) Unity: add UDPSaberReceiver, Play — Console logs listening ports.
+  E) Pico: send UDP to PC_IP:5000 or :5001 at ~30–60 Hz.
+
+--------------------------------------------------------------------------------
+6) Full MicroPython example — IMU + joystick + SW (save as main.py)
+--------------------------------------------------------------------------------
+  import network
+  import socket
+  import time
+  from machine import Pin, ADC, I2C
+
+  SSID = "YOUR_WIFI"
+  PASSWORD = "YOUR_PASSWORD"
+  PC_IP = "192.168.1.42"   # ipconfig on Windows
+  PORT = 5000              # 5001 for right-hand Pico
+
+  # --- Joystick (ADC 0..65535 → 0..1 for Unity) ---
+  adc_x = ADC(26)
+  adc_y = ADC(27)
+  btn = Pin(16, Pin.IN, Pin.PULL_UP)
+
+  # --- MPU6050 ---
+  i2c = I2C(0, scl=Pin(5), sda=Pin(4), freq=400000)
+  from mpu6050 import MPU6050
+  mpu = MPU6050(i2c)
+
+  wlan = network.WLAN(network.STA_IF)
+  wlan.active(True)
+  wlan.connect(SSID, PASSWORD)
+  while wlan.status() != 3:
+      print("wifi...", wlan.status())
+      time.sleep(0.25)
+  print("WiFi OK", wlan.ifconfig())
+
+  sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+  while True:
+      v = mpu.get_values()
+      a = v["accel"]
+      g = v["gyro"]
+      jx = adc_x.read_u16() / 65535.0
+      jy = adc_y.read_u16() / 65535.0
+      # Pressed = 0 with pull-up → send 1.0 to Unity when pressed
+      sw = 0.0 if btn.value() else 1.0
+
+      msg = "{},{},{},{},{},{},{},{},{}".format(
+          a["x"], a["y"], a["z"],
+          g["x"], g["y"], g["z"],
+          jx, jy, sw,
+      )
+      sock.sendto(msg.encode("utf-8"), (PC_IP, PORT))
+      time.sleep(0.02)
+
+--------------------------------------------------------------------------------
+7) BOOTSEL vs normal USB
+--------------------------------------------------------------------------------
+  BOOTSEL only to flash a new .uf2 (MicroPython firmware). For day-to-day code,
+  use Thonny/mpremote and save main.py — no BOOTSEL.
+
+--------------------------------------------------------------------------------
+8) Axis / sign notes (Unity)
+--------------------------------------------------------------------------------
+  SaberMotionController negates gyro for Unity handedness. Flip in firmware
+  or tune gyroScale if the blade drifts the wrong way.
+
+================================================================================

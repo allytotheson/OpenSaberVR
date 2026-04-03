@@ -15,27 +15,27 @@ RenderSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 10
   m_Fog: 1
-  m_FogColor: {r: 0, g: 0.2851645, b: 0.4433962, a: 1}
+  m_FogColor: {r: 0.012, g: 0.04, b: 0.1, a: 1}
   m_FogMode: 3
-  m_FogDensity: 0.05
+  m_FogDensity: 0.03
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
-  m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
-  m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
-  m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
-  m_AmbientIntensity: 1
-  m_AmbientMode: 0
+  m_AmbientSkyColor: {r: 0.03, g: 0.07, b: 0.15, a: 1}
+  m_AmbientEquatorColor: {r: 0.02, g: 0.05, b: 0.11, a: 1}
+  m_AmbientGroundColor: {r: 0.015, g: 0.035, b: 0.08, a: 1}
+  m_AmbientIntensity: 0.95
+  m_AmbientMode: 3
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
+  m_SkyboxMaterial: {fileID: 0}
   m_HaloStrength: 0.5
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
   m_HaloTexture: {fileID: 0}
   m_SpotCookie: {fileID: 10001, guid: 0000000000000000e000000000000000, type: 0}
   m_DefaultReflectionMode: 0
-  m_DefaultReflectionResolution: 128
+  m_DefaultReflectionResolution: 256
   m_ReflectionBounces: 1
-  m_ReflectionIntensity: 1
+  m_ReflectionIntensity: 1.15
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
   m_UseRadianceAmbientProbe: 0
@@ -867,7 +867,7 @@ PrefabInstance:
     - target: {fileID: 7196774935191616724, guid: d65ef765065d48c4495cd60cd18dcdd4,
         type: 3}
       propertyPath: m_Name
-      value: RightSword
+      value: RightSaber
       objectReference: {fileID: 0}
     - target: {fileID: 7196774935191616724, guid: d65ef765065d48c4495cd60cd18dcdd4,
         type: 3}
@@ -951,19 +951,79 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects:
-    - targetCorrespondingSourceObject: {fileID: 7542337509506131566, guid: d65ef765065d48c4495cd60cd18dcdd4,
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 7196774935191616724, guid: d65ef765065d48c4495cd60cd18dcdd4,
         type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1161918676}
-    m_AddedComponents: []
+      addedObject: {fileID: 424057256}
+    - targetCorrespondingSourceObject: {fileID: 7196774935191616724, guid: d65ef765065d48c4495cd60cd18dcdd4,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 424057255}
   m_SourcePrefab: {fileID: 100100000, guid: d65ef765065d48c4495cd60cd18dcdd4, type: 3}
---- !u!4 &424057254 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 7542337509506131566, guid: d65ef765065d48c4495cd60cd18dcdd4,
+--- !u!1 &397960056 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7196774935191616724, guid: d65ef765065d48c4495cd60cd18dcdd4,
     type: 3}
   m_PrefabInstance: {fileID: 397960055}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &424057255
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 397960056}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a1571189fd1cc24693a3a6eb1cd5156, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SaberMotionController
+  hand: 1
+  receiver: {fileID: 424057256}
+  saberTransform: {fileID: 0}
+  basePosition: {x: 0.25, y: 1.5, z: 0}
+  playerRoot: {fileID: 0}
+  baseForward: {x: 0, y: 0, z: 1}
+  gyroScale: 1
+  accelPositionScale: 0.01
+  applyJoystickNudgeFromUdp: 0
+  joystickNudgeMeters: 0.4
+  clampPosition: 1
+  maxPositionRadius: 1.5
+--- !u!114 &424057256
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 397960056}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7404647029d400e4b9ed07b601149a51, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UDPSaberReceiver
+  leftSaberPort: 0
+  rightSaberPort: 5001
+  leftSaberData:
+    acceleration: {x: 0, y: 0, z: 0}
+    angularVelocity: {x: 0, y: 0, z: 0}
+    timestamp: 0
+    valid: 0
+    joystickX: 0
+    joystickY: 0
+    selectPressed: 0
+    hasControllerExtras: 0
+  rightSaberData:
+    acceleration: {x: 0, y: 0, z: 0}
+    angularVelocity: {x: 0, y: 0, z: 0}
+    timestamp: 0
+    valid: 0
+    joystickX: 0
+    joystickY: 0
+    selectPressed: 0
+    hasControllerExtras: 0
 --- !u!1 &735382882
 GameObject:
   m_ObjectHideFlags: 0
@@ -975,6 +1035,7 @@ GameObject:
   - component: {fileID: 735382884}
   - component: {fileID: 735382886}
   - component: {fileID: 735382885}
+  - component: {fileID: 735382887}
   m_Layer: 0
   m_Name: Spawner
   m_TagString: Untagged
@@ -1157,6 +1218,41 @@ MonoBehaviour:
   importedHaloLocalPosition: {x: 0, y: 0, z: 0}
   fallbackCapsuleLocalOffset: {x: 0, y: 0, z: 0.38}
   fallbackCapsuleLocalScale: {x: 0.05, y: 0.5, z: 0.05}
+--- !u!114 &735382887
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 735382882}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8dad0c4db1b6ea44886ef6f6264e341, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DesktopSaberTestInput
+  preferUdpImuWhenValid: 0
+  alignBlendFromNote: 0.78
+  noteRotationBlend: 0
+  alignSaberRotationToBlockArrow: 1
+  autoAlignSabersToNotes: 1
+  desktopAlignSmoothing: 22
+  suppressDesktopIdleJitter: 1
+  slashDiagonalDegrees: 45
+  leftHandLocal: {x: -0.72, y: -0.11, z: 0.72}
+  rightHandLocal: {x: 0.72, y: -0.11, z: 0.72}
+  desktopBladeTipInwardBlend: 0.58
+  desktopMaxNoteRotationBlend: 0.48
+  pullTowardCameraFromBlock: 0.26
+  alignSmoothing: 14
+  jitterAmplitude: 0.028
+  jitterFrequency: 2.8
+  rotationJitterDegrees: 2.2
+  moveSpeed: 3.2
+  yawSpeed: 110
+  alignmentProviderBehaviour: {fileID: 0}
+  autoPulseSwingNearNote: 1
+  autoPulseMinInterval: 0.2
+  keyboardSlashPulseSeconds: 0.42
 --- !u!1 &819751433
 GameObject:
   m_ObjectHideFlags: 0
@@ -1461,55 +1557,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 735382884}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1161918675
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1161918676}
-  - component: {fileID: 1161918677}
-  m_Layer: 10
-  m_Name: Global Volume
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1161918676
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1161918675}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 424057254}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1161918677
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1161918675}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 172515602e62fb746b5d573b38a5fe58, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Core.Runtime::UnityEngine.Rendering.Volume
-  m_IsGlobal: 1
-  priority: 0
-  blendDistance: 0
-  weight: 1
-  sharedProfile: {fileID: 0}
 --- !u!1 &1288463069
 GameObject:
   m_ObjectHideFlags: 0
@@ -1661,7 +1708,7 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: e12f3a016f4da3e43a21ce0acd638ff7,
         type: 3}
       propertyPath: m_Name
-      value: LeftSword
+      value: LeftSaber
       objectReference: {fileID: 0}
     - target: {fileID: 6944656104360116776, guid: e12f3a016f4da3e43a21ce0acd638ff7,
         type: 3}
@@ -1671,8 +1718,78 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: e12f3a016f4da3e43a21ce0acd638ff7,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1533990785}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: e12f3a016f4da3e43a21ce0acd638ff7,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1533990784}
   m_SourcePrefab: {fileID: 100100000, guid: e12f3a016f4da3e43a21ce0acd638ff7, type: 3}
+--- !u!1 &1533990783 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: e12f3a016f4da3e43a21ce0acd638ff7,
+    type: 3}
+  m_PrefabInstance: {fileID: 1533990782}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1533990784
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1533990783}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a1571189fd1cc24693a3a6eb1cd5156, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SaberMotionController
+  hand: 0
+  receiver: {fileID: 1533990785}
+  saberTransform: {fileID: 0}
+  basePosition: {x: 0.25, y: 1.5, z: 0}
+  playerRoot: {fileID: 0}
+  baseForward: {x: 0, y: 0, z: 1}
+  gyroScale: 1
+  accelPositionScale: 0.01
+  applyJoystickNudgeFromUdp: 0
+  joystickNudgeMeters: 0.4
+  clampPosition: 1
+  maxPositionRadius: 1.5
+--- !u!114 &1533990785
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1533990783}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7404647029d400e4b9ed07b601149a51, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UDPSaberReceiver
+  leftSaberPort: 5000
+  rightSaberPort: 0
+  leftSaberData:
+    acceleration: {x: 0, y: 0, z: 0}
+    angularVelocity: {x: 0, y: 0, z: 0}
+    timestamp: 0
+    valid: 0
+    joystickX: 0
+    joystickY: 0
+    selectPressed: 0
+    hasControllerExtras: 0
+  rightSaberData:
+    acceleration: {x: 0, y: 0, z: 0}
+    angularVelocity: {x: 0, y: 0, z: 0}
+    timestamp: 0
+    valid: 0
+    joystickX: 0
+    joystickY: 0
+    selectPressed: 0
+    hasControllerExtras: 0
 --- !u!1 &1624104738
 GameObject:
   m_ObjectHideFlags: 0

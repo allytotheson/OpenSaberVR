@@ -92,6 +92,9 @@ public class DemonHitDetector : MonoBehaviour
 
         bool pulse = swingDetector != null && swingDetector.IsKeyboardPulseSwinging;
         float radius = pulse ? overlapRadius * keyboardPulseOverlapScale : overlapRadius;
+        // Auto-slice pulses are short; saber may sit slightly off the strict plane math — widen reach and relax plane below.
+        if (pulse && GameplayDebugHud.AutoSliceNotes)
+            radius = Mathf.Max(radius, overlapRadius * 4f);
 
         if (TryHitWithOverlap(pulse, radius))
         {
@@ -205,6 +208,10 @@ public class DemonHitDetector : MonoBehaviour
     private bool TryHitWithOverlap(bool keyboardPulse, float radiusUsed)
     {
         Collider[] cols = Physics.OverlapSphere(transform.position, radiusUsed, layer, QueryTriggerInteraction.Collide);
+        if ((cols == null || cols.Length == 0) && keyboardPulse && GameplayDebugHud.AutoSliceNotes)
+        {
+            cols = Physics.OverlapSphere(transform.position, radiusUsed * 1.65f, ~0, QueryTriggerInteraction.Collide);
+        }
         Collider best = null;
         float bestDist = float.MaxValue;
         foreach (Collider c in cols)
@@ -221,7 +228,7 @@ public class DemonHitDetector : MonoBehaviour
 
         if (best == null)
             return false;
-        if (!IsDemonAtHitPlane(best.transform, keyboardPulse, out _))
+        if (!PassesPlaneForHit(best.transform, keyboardPulse))
             return false;
         if (!CheckCutAngle(best.transform, keyboardPulse))
             return false;
@@ -235,7 +242,7 @@ public class DemonHitDetector : MonoBehaviour
         {
             if (!IsDemon(hit.transform))
                 return false;
-            if (!IsDemonAtHitPlane(hit.transform, keyboardPulse, out _))
+            if (!PassesPlaneForHit(hit.transform, keyboardPulse))
                 return false;
             if (!CheckCutAngle(hit.transform, keyboardPulse))
                 return false;
@@ -262,6 +269,36 @@ public class DemonHitDetector : MonoBehaviour
         if (col != null)
             return col.bounds.center;
         return root.position;
+    }
+
+    /// <summary>
+    /// Strict plane + lead cap, or a thick-slab fallback when desktop auto-slice is pulsing (avoids MISS at the cyan line).
+    /// </summary>
+    bool PassesPlaneForHit(Transform demonTransform, bool keyboardPulse)
+    {
+        if (IsDemonAtHitPlane(demonTransform, keyboardPulse, out _))
+            return true;
+        return GameplayDebugHud.AutoSliceNotes && keyboardPulse && PassesAutoSliceRelaxedPlane(demonTransform);
+    }
+
+    /// <summary>
+    /// Ignores motion-aligned leading-edge cap: any overlap of note bounds with a thick slab around the hit plane counts.
+    /// </summary>
+    static bool PassesAutoSliceRelaxedPlane(Transform demonTransform)
+    {
+        var dh = demonTransform.GetComponentInParent<DemonHandling>();
+        Transform root = dh != null ? dh.transform : demonTransform;
+        if (!BeatSaberHitLineGuide.TryGetGameplayHitPlane(out _, out _))
+            return false;
+
+        const float thickHalfMeters = 1.75f;
+        if (!BeatSaberHitLineGuide.TryGetNoteVisualSignedExtentsAlongPlane(root, out float minS, out float maxS))
+        {
+            float s = BeatSaberHitLineGuide.SignedDistanceToGameplayHitPlane(DemonSampleWorldPoint(demonTransform));
+            return Mathf.Abs(s) <= thickHalfMeters;
+        }
+
+        return !(minS > thickHalfMeters || maxS < -thickHalfMeters);
     }
 
     private bool IsDemonAtHitPlane(Transform demonTransform, bool keyboardPulse, out float absSignedDistanceToPlane)

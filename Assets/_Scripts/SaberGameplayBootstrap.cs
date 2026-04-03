@@ -83,6 +83,7 @@ public static class SaberGameplayBootstrap
                 RemoveDuplicateComponents<DesktopSaberTestInput>(spawner.gameObject);
                 RemoveDuplicateComponents<DesktopCameraMountSaberVisual>(spawner.gameObject);
                 RemoveDuplicateComponents<DesktopAutoSliceHits>(spawner.gameObject);
+                RemoveDuplicateComponents<UdpSelectToSwingBridge>(spawner.gameObject);
             }
 
             if (spawner != null && spawner.GetComponent<DesktopSaberTestInput>() == null)
@@ -96,6 +97,10 @@ public static class SaberGameplayBootstrap
 
             if (spawner != null && spawner.GetComponent<DesktopAutoSliceHits>() == null)
                 spawner.gameObject.AddComponent<DesktopAutoSliceHits>();
+
+            if (spawner != null && Object.FindAnyObjectByType<UDPSaberReceiver>() != null &&
+                spawner.GetComponent<UdpSelectToSwingBridge>() == null)
+                spawner.gameObject.AddComponent<UdpSelectToSwingBridge>();
         }
 #endif
     }

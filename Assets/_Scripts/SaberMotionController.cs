@@ -28,6 +28,11 @@ public class SaberMotionController : MonoBehaviour
     [Tooltip("Scale accel (g) to position influence")]
     public float accelPositionScale = 0.01f;
 
+    [Header("UDP joystick (optional, fields jx,jy in packet)")]
+    [Tooltip("Nudge saber position from stick: full deflection moves this many meters (camera right/up).")]
+    public bool applyJoystickNudgeFromUdp;
+    public float joystickNudgeMeters = 0.4f;
+
     [Header("Bounds (optional)")]
     public bool clampPosition = true;
     public float maxPositionRadius = 1.5f;
@@ -87,8 +92,15 @@ public class SaberMotionController : MonoBehaviour
         Vector3 basePos = basePosition;
         if (hand == SaberHand.Left) basePos.x = -Mathf.Abs(basePos.x);
         Vector3 worldBase = playerRoot != null ? playerRoot.TransformPoint(basePos) : basePos;
+        Vector3 stickShift = Vector3.zero;
+        if (applyJoystickNudgeFromUdp && data.hasControllerExtras && playerRoot != null && joystickNudgeMeters > 0f)
+        {
+            float nx = (data.joystickX - 0.5f) * 2f;
+            float ny = (data.joystickY - 0.5f) * 2f;
+            stickShift = (playerRoot.right * nx + playerRoot.up * ny) * (joystickNudgeMeters * 0.5f);
+        }
         Vector3 accelOffset = (Vector3)data.acceleration * accelPositionScale;
-        currentPosition = worldBase + currentRotation * accelOffset;
+        currentPosition = worldBase + stickShift + currentRotation * accelOffset;
         if (clampPosition)
         {
             currentPosition.y = Mathf.Clamp(currentPosition.y, worldBase.y - maxPositionRadius, worldBase.y + maxPositionRadius);

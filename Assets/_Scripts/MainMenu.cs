@@ -17,9 +17,22 @@ public class MainMenu : MonoBehaviour
     public GameObject Title;
     public GameObject NoSongsFound;
     public AudioSource SongPreview;
+    [Tooltip("Title: START only. Flow screens: compact EXIT at top (back / quit path). Both hidden on quit confirmation.")]
+    public GameObject HomeScreenButtonStart;
+    public GameObject HomeScreenButtonExit;
+    [Tooltip("Overridden from SharedExitButtonLayout if left at default.")]
+    public float exitTopOffsetY = SharedExitButtonLayout.TopOffsetY;
+    [Tooltip("Local Z for EXIT so it sorts in front of song/difficulty panels.")]
+    public float exitForwardLocalZ = SharedExitButtonLayout.ForwardLocalZ;
+    [Tooltip("EXIT rect size on flow screens.")]
+    public Vector2 exitFlowSizeDelta = SharedExitButtonLayout.SizeDelta;
+    [Tooltip("Uniform scale for EXIT on flow screens.")]
+    public float exitFlowScale = SharedExitButtonLayout.UniformScale;
 
     private SongSettings Songsettings;
     private SceneHandling SceneHandling;
+    RectTransform _startRt;
+    RectTransform _exitRt;
 
     AudioClip PreviewAudioClip = null;
     bool PlayNewPreview = false;
@@ -28,6 +41,82 @@ public class MainMenu : MonoBehaviour
     {
         Songsettings = GameObject.FindGameObjectWithTag("SongSettings").GetComponent<SongSettings>();
         SceneHandling = GameObject.FindGameObjectWithTag("SceneHandling").GetComponent<SceneHandling>();
+
+        var cv = GetComponent<Canvas>();
+        if (cv != null && cv.worldCamera == null && Camera.main != null)
+            cv.worldCamera = Camera.main;
+
+        if (HomeScreenButtonStart != null)
+            _startRt = HomeScreenButtonStart.GetComponent<RectTransform>();
+        if (HomeScreenButtonExit != null)
+            _exitRt = HomeScreenButtonExit.GetComponent<RectTransform>();
+
+        SyncCanvasScalerWithSharedExitLayout();
+
+        if (Title != null && Title.activeSelf)
+            SetTitleScreenLayout();
+        else if ((SongChooser != null && SongChooser.activeSelf) ||
+                 (NoSongsFound != null && NoSongsFound.activeSelf) ||
+                 (LevelChooser != null && LevelChooser.activeSelf))
+            SetFlowScreenLayout();
+    }
+
+    void SyncCanvasScalerWithSharedExitLayout()
+    {
+        var scaler = GetComponent<CanvasScaler>();
+        if (scaler == null)
+            return;
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(
+            SharedExitButtonLayout.ReferenceResolutionX,
+            SharedExitButtonLayout.ReferenceResolutionY);
+        scaler.matchWidthOrHeight = SharedExitButtonLayout.MatchWidthOrHeight;
+    }
+
+    void SetHomeScreenButtonsVisible(bool visible)
+    {
+        if (HomeScreenButtonStart != null) HomeScreenButtonStart.SetActive(visible);
+        if (HomeScreenButtonExit != null) HomeScreenButtonExit.SetActive(visible);
+    }
+
+    void ApplyExitButtonTopBar()
+    {
+        if (_exitRt == null) return;
+        _exitRt.anchorMin = new Vector2(0.5f, 1f);
+        _exitRt.anchorMax = new Vector2(0.5f, 1f);
+        _exitRt.pivot = new Vector2(0.5f, 1f);
+        _exitRt.sizeDelta = exitFlowSizeDelta;
+        _exitRt.localScale = new Vector3(exitFlowScale, exitFlowScale, exitFlowScale);
+        _exitRt.anchoredPosition = new Vector2(0f, exitTopOffsetY);
+        var lp = _exitRt.localPosition;
+        _exitRt.localPosition = new Vector3(lp.x, lp.y, exitForwardLocalZ);
+    }
+
+    void ApplyStartTitleBottomCenter()
+    {
+        if (_startRt == null) return;
+        _startRt.anchorMin = new Vector2(0.5f, 0.5f);
+        _startRt.anchorMax = new Vector2(0.5f, 0.5f);
+        _startRt.pivot = new Vector2(0.5f, 0.5f);
+        _startRt.anchoredPosition = new Vector2(0f, -298f);
+        var lp = _startRt.localPosition;
+        _startRt.localPosition = new Vector3(lp.x, lp.y, 0f);
+    }
+
+    /// <summary>Title: large START only at bottom center; no EXIT.</summary>
+    void SetTitleScreenLayout()
+    {
+        ApplyStartTitleBottomCenter();
+        if (HomeScreenButtonStart != null) HomeScreenButtonStart.SetActive(true);
+        if (HomeScreenButtonExit != null) HomeScreenButtonExit.SetActive(false);
+    }
+
+    /// <summary>Songs / no-songs / difficulty / return-from-gameplay: EXIT at top; no START.</summary>
+    void SetFlowScreenLayout()
+    {
+        ApplyExitButtonTopBar();
+        if (HomeScreenButtonStart != null) HomeScreenButtonStart.SetActive(false);
+        if (HomeScreenButtonExit != null) HomeScreenButtonExit.SetActive(true);
     }
 
     public void ShowSongs()
@@ -36,6 +125,7 @@ public class MainMenu : MonoBehaviour
         {
             Title.gameObject.SetActive(false);
             NoSongsFound.gameObject.SetActive(true);
+            SetFlowScreenLayout();
             return;
         }
 
@@ -51,6 +141,8 @@ public class MainMenu : MonoBehaviour
         SongInfos.Artist.text = song.AuthorName;
         SongInfos.BPM.text = song.BPM;
         SongInfos.Levels.text = song.Difficulties.Count.ToString();
+
+        SetFlowScreenLayout();
 
         byte[] byteArray = File.ReadAllBytes(song.CoverImagePath);
         Texture2D sampleTexture = new Texture2D(2, 2);
@@ -213,6 +305,7 @@ public class MainMenu : MonoBehaviour
 
     public void AreYouSure()
     {
+        SetHomeScreenButtonsVisible(false);
         NoSongsFound.gameObject.SetActive(false);
         Title.gameObject.SetActive(false);
         SongChooser.gameObject.SetActive(false);
@@ -224,6 +317,7 @@ public class MainMenu : MonoBehaviour
     {
         PanelAreYouSure.gameObject.SetActive(false);
         Title.gameObject.SetActive(true);
+        SetTitleScreenLayout();
     }
 
     public void Yes()
@@ -232,11 +326,13 @@ public class MainMenu : MonoBehaviour
     }
 
     /// <summary>
-    /// Exit button: from the song list or "no songs" screen → back to title. From difficulty picker → back to song list.
-    /// On the title screen only → no-op. Otherwise quits the app.
+    /// EXIT: from flow screens → back toward home or song list. Title has no EXIT button; quit is not offered from the default menu screen.
     /// </summary>
     public void ExitApplication()
     {
+        if (PanelAreYouSure != null && PanelAreYouSure.activeSelf)
+            return;
+
         if (Title != null && Title.activeSelf)
             return;
 
@@ -258,7 +354,7 @@ public class MainMenu : MonoBehaviour
             return;
         }
 
-        QuitNow();
+        BackToTitleScreen();
     }
 
     void BackToTitleScreen()
@@ -273,6 +369,7 @@ public class MainMenu : MonoBehaviour
         if (PanelAreYouSure != null) PanelAreYouSure.SetActive(false);
         if (NoSongsFound != null) NoSongsFound.SetActive(false);
         if (Title != null) Title.SetActive(true);
+        SetTitleScreenLayout();
     }
 
     void BackToSongListFromDifficulty()
@@ -287,6 +384,7 @@ public class MainMenu : MonoBehaviour
         if (PanelAreYouSure != null) PanelAreYouSure.SetActive(false);
         if (SongChooser != null) SongChooser.SetActive(true);
         if (Title != null) Title.SetActive(false);
+        SetFlowScreenLayout();
 
         if (SongPreview != null)
             SongPreview.Stop();
