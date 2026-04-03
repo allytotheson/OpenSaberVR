@@ -164,7 +164,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: a2b22d275486bdf4da517e446c4e4e7a, type: 2}
+  - {fileID: 2100000, guid: 05b9d1de2482b13439618ad8441bad0f, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -427,7 +427,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: fe0fb3eb701442642a150ba3ee193139, type: 2}
+  - {fileID: 2100000, guid: 12bc0438b05712b498517086c163e6d0, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -517,7 +517,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: fe0fb3eb701442642a150ba3ee193139, type: 2}
+  - {fileID: 2100000, guid: 12bc0438b05712b498517086c163e6d0, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -607,7 +607,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: fe0fb3eb701442642a150ba3ee193139, type: 2}
+  - {fileID: 2100000, guid: 12bc0438b05712b498517086c163e6d0, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -728,7 +728,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: a2b22d275486bdf4da517e446c4e4e7a, type: 2}
+  - {fileID: 2100000, guid: 05b9d1de2482b13439618ad8441bad0f, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -867,6 +867,11 @@ PrefabInstance:
     - target: {fileID: 7196774935191616724, guid: d65ef765065d48c4495cd60cd18dcdd4,
         type: 3}
       propertyPath: m_Name
+      value: RightSaber
+      objectReference: {fileID: 0}
+    - target: {fileID: 7196774935191616724, guid: d65ef765065d48c4495cd60cd18dcdd4,
+        type: 3}
+      propertyPath: m_TagString
       value: RightSaber
       objectReference: {fileID: 0}
     - target: {fileID: 7196774935191616724, guid: d65ef765065d48c4495cd60cd18dcdd4,
@@ -1296,7 +1301,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: fe0fb3eb701442642a150ba3ee193139, type: 2}
+  - {fileID: 2100000, guid: 12bc0438b05712b498517086c163e6d0, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1417,7 +1422,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: a2b22d275486bdf4da517e446c4e4e7a, type: 2}
+  - {fileID: 2100000, guid: 05b9d1de2482b13439618ad8441bad0f, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1600,7 +1605,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: a2b22d275486bdf4da517e446c4e4e7a, type: 2}
+  - {fileID: 2100000, guid: 05b9d1de2482b13439618ad8441bad0f, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1709,6 +1714,16 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: LeftSaber
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: e12f3a016f4da3e43a21ce0acd638ff7,
+        type: 3}
+      propertyPath: m_TagString
+      value: LeftSaber
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: e12f3a016f4da3e43a21ce0acd638ff7,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6944656104360116776, guid: e12f3a016f4da3e43a21ce0acd638ff7,
         type: 3}

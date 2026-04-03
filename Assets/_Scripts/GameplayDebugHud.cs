@@ -12,9 +12,6 @@ public class GameplayDebugHud : MonoBehaviour
     /// <summary>Developer HUD: pulse matching saber at the hit plane so notes cut without keys (desktop).</summary>
     public static bool AutoSliceNotes = false;
 
-    static readonly Color MenuExitImageTint = new Color(0.06f, 0.04f, 0.05f, 0.96f);
-    static readonly Color MenuExitTextColor = new Color(1f, 0.55f, 0.62f, 1f);
-
     GameObject _exitBar;
     Button _devModeButton;
     Text _devModeButtonText;
@@ -63,38 +60,10 @@ public class GameplayDebugHud : MonoBehaviour
 
     void BuildScreenSpaceUi()
     {
-        var canvasGo = new GameObject("GameplayHudCanvas");
-        canvasGo.transform.SetParent(transform, false);
-        var canvas = canvasGo.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 350;
-        canvasGo.AddComponent<GraphicRaycaster>();
+        var canvasGo = MenuExitScreenHud.CreateOverlayCanvasRoot(transform, "GameplayHudCanvas");
+        Font font = MenuExitScreenHud.ResolveMenuFont();
 
-        var scaler = canvasGo.AddComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(
-            SharedExitButtonLayout.ReferenceResolutionX,
-            SharedExitButtonLayout.ReferenceResolutionY);
-        scaler.matchWidthOrHeight = SharedExitButtonLayout.MatchWidthOrHeight;
-
-        Font font = Resources.Load<Font>("Fonts/Gugi-Regular");
-        if (font == null)
-            font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-
-        _exitBar = new GameObject("ExitBar");
-        _exitBar.transform.SetParent(canvasGo.transform, false);
-        var exitBarRt = _exitBar.AddComponent<RectTransform>();
-        exitBarRt.anchorMin = new Vector2(0.5f, 1f);
-        exitBarRt.anchorMax = new Vector2(0.5f, 1f);
-        exitBarRt.pivot = new Vector2(0.5f, 1f);
-        exitBarRt.anchoredPosition = new Vector2(0f, SharedExitButtonLayout.TopOffsetY);
-        exitBarRt.sizeDelta = SharedExitButtonLayout.SizeDelta;
-        exitBarRt.localScale = new Vector3(
-            SharedExitButtonLayout.UniformScale,
-            SharedExitButtonLayout.UniformScale,
-            SharedExitButtonLayout.UniformScale);
-
-        BuildMainMenuStyleExitButton(_exitBar.transform, font);
+        _exitBar = MenuExitScreenHud.CreateExitBar(canvasGo.transform, font, OnGameplayExitClicked);
         _exitBar.SetActive(false);
 
         var panel = new GameObject("DevToolsPanel");
@@ -169,59 +138,6 @@ public class GameplayDebugHud : MonoBehaviour
         hint.AddComponent<LayoutElement>().preferredHeight = 36f;
 
         SyncScreenUiLabels();
-    }
-
-    void BuildMainMenuStyleExitButton(Transform parent, Font font)
-    {
-        var go = new GameObject("Btn_Exit_Gameplay");
-        go.transform.SetParent(parent, false);
-        var rt = go.AddComponent<RectTransform>();
-        rt.anchorMin = Vector2.zero;
-        rt.anchorMax = Vector2.one;
-        rt.offsetMin = Vector2.zero;
-        rt.offsetMax = Vector2.zero;
-        rt.localScale = Vector3.one;
-
-        Sprite frame = Resources.Load<Sprite>("UI/MenuExitFrame");
-        if (frame == null)
-        {
-            var t = Texture2D.whiteTexture;
-            frame = Sprite.Create(t, new Rect(0, 0, t.width, t.height), new Vector2(0.5f, 0.5f), 100f);
-        }
-
-        var img = go.AddComponent<Image>();
-        img.sprite = frame;
-        img.type = Image.Type.Simple;
-        img.color = MenuExitImageTint;
-
-        var btn = go.AddComponent<Button>();
-        var colors = btn.colors;
-        colors.normalColor = new Color(0.95f, 0.82f, 0.88f, 0.2f);
-        colors.highlightedColor = new Color(1f, 0.55f, 0.65f, 0.5f);
-        colors.pressedColor = new Color(0.85f, 0.35f, 0.45f, 0.42f);
-        colors.fadeDuration = 0.05f;
-        btn.colors = colors;
-        btn.targetGraphic = img;
-        btn.onClick.AddListener(OnGameplayExitClicked);
-
-        go.AddComponent<MenuButtonHoverFeedback>();
-
-        var textGo = new GameObject("Text");
-        textGo.transform.SetParent(go.transform, false);
-        var textRt = textGo.AddComponent<RectTransform>();
-        textRt.anchorMin = Vector2.zero;
-        textRt.anchorMax = Vector2.one;
-        textRt.offsetMin = new Vector2(8f, 4f);
-        textRt.offsetMax = new Vector2(-8f, -4f);
-
-        var label = textGo.AddComponent<Text>();
-        if (font != null) label.font = font;
-        label.fontSize = 52;
-        label.fontStyle = FontStyle.Normal;
-        label.color = MenuExitTextColor;
-        label.alignment = TextAnchor.MiddleCenter;
-        label.raycastTarget = false;
-        label.text = "EXIT";
     }
 
     void OnGameplayExitClicked()

@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Wires desktop gameplay: <see cref="SwingDetector"/> + <see cref="DemonHitDetector"/> on blade objects
@@ -9,30 +11,37 @@ public static class SaberGameplayBootstrap
 {
     public static void EnsureAfterGameplayLoad()
     {
-        var slices = Object.FindObjectsByType<Slice>(FindObjectsInactive.Include);
-        if (slices == null || slices.Length == 0)
-            return;
+        Scene open = SceneManager.GetSceneByName("OpenSaber");
+        bool openLoaded = open.IsValid() && open.isLoaded;
 
-        var roots = new System.Collections.Generic.List<Transform>();
-        foreach (var s in slices)
+        Slice[] slices;
+        GameObject leftHand;
+        GameObject rightHand;
+
+        if (openLoaded)
         {
-            if (s == null) continue;
-            Transform hand = s.transform.parent;
-            if (hand == null) continue;
-            bool dup = false;
-            foreach (var r in roots)
-            {
-                if (r == hand) { dup = true; break; }
-            }
-            if (!dup) roots.Add(hand);
+            GameObject lRoot = SceneHandling.ResolveSaberRootInScene(open, true);
+            GameObject rRoot = SceneHandling.ResolveSaberRootInScene(open, false);
+            EnsureSliceOnPrimaryBlade(lRoot);
+            EnsureSliceOnPrimaryBlade(rRoot);
+
+            slices = ListSlicesInScene(open);
+            if (slices.Length < 2)
+                return;
+
+            leftHand = SceneHandling.ResolveSaberRootInScene(open, true);
+            rightHand = SceneHandling.ResolveSaberRootInScene(open, false);
+            if (leftHand == null || rightHand == null)
+                return;
         }
-
-        if (roots.Count < 2)
-            return;
-
-        roots.Sort((a, b) => a.position.x.CompareTo(b.position.x));
-        GameObject leftHand = roots[0].gameObject;
-        GameObject rightHand = roots[roots.Count - 1].gameObject;
+        else
+        {
+            slices = Object.FindObjectsByType<Slice>(FindObjectsInactive.Include);
+            if (slices == null || slices.Length == 0)
+                return;
+            if (!TryBuildHandsFromSliceParents(slices, out leftHand, out rightHand))
+                return;
+        }
 
         TrySetTag(leftHand, "LeftSaber");
         TrySetTag(rightHand, "RightSaber");
@@ -63,8 +72,9 @@ public static class SaberGameplayBootstrap
         var sh = Object.FindAnyObjectByType<SceneHandling>();
         if (sh != null)
         {
-            if (sh.LeftSaber == null) sh.LeftSaber = leftHand;
-            if (sh.RightSaber == null) sh.RightSaber = rightHand;
+            sh.LeftSaber = leftHand;
+            sh.RightSaber = rightHand;
+            sh.RefreshGameplaySabers();
         }
 
 #if UNITY_EDITOR || UNITY_STANDALONE
@@ -103,6 +113,58 @@ public static class SaberGameplayBootstrap
                 spawner.gameObject.AddComponent<UdpSelectToSwingBridge>();
         }
 #endif
+    }
+
+    static Slice[] ListSlicesInScene(Scene scene)
+    {
+        var list = new List<Slice>();
+        foreach (var s in Object.FindObjectsByType<Slice>(FindObjectsInactive.Include))
+        {
+            if (s != null && s.gameObject.scene == scene)
+                list.Add(s);
+        }
+        return list.ToArray();
+    }
+
+    static bool TryBuildHandsFromSliceParents(Slice[] slices, out GameObject leftHand, out GameObject rightHand)
+    {
+        leftHand = rightHand = null;
+        var roots = new List<Transform>();
+        foreach (var s in slices)
+        {
+            if (s == null) continue;
+            Transform hand = s.transform.parent;
+            if (hand == null) continue;
+            bool dup = false;
+            foreach (var r in roots)
+            {
+                if (r == hand) { dup = true; break; }
+            }
+            if (!dup) roots.Add(hand);
+        }
+
+        if (roots.Count < 2)
+            return false;
+
+        roots.Sort((a, b) => a.position.x.CompareTo(b.position.x));
+        leftHand = roots[0].gameObject;
+        rightHand = roots[roots.Count - 1].gameObject;
+        return true;
+    }
+
+    /// <summary>Adds <see cref="Slice"/> on the same object as the first <see cref="Renderer"/> under the hand if missing.</summary>
+    static void EnsureSliceOnPrimaryBlade(GameObject handRoot)
+    {
+        if (handRoot == null)
+            return;
+        if (handRoot.GetComponentInChildren<Slice>(true) != null)
+            return;
+
+        var r = handRoot.GetComponentInChildren<Renderer>(true);
+        if (r == null)
+            return;
+        if (r.gameObject.GetComponent<Slice>() == null)
+            r.gameObject.AddComponent<Slice>();
     }
 
     static void RemoveDuplicateComponents<T>(GameObject go) where T : Component

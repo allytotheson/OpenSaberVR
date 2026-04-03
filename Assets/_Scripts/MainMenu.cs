@@ -17,22 +17,15 @@ public class MainMenu : MonoBehaviour
     public GameObject Title;
     public GameObject NoSongsFound;
     public AudioSource SongPreview;
-    [Tooltip("Title: START only. Flow screens: compact EXIT at top (back / quit path). Both hidden on quit confirmation.")]
+    [Tooltip("Title: START only. Song/difficulty: screen-space EXIT (same as OpenSaber HUD). World-space Btn_Exit is hidden.")]
     public GameObject HomeScreenButtonStart;
     public GameObject HomeScreenButtonExit;
-    [Tooltip("Overridden from SharedExitButtonLayout if left at default.")]
-    public float exitTopOffsetY = SharedExitButtonLayout.TopOffsetY;
-    [Tooltip("Local Z for EXIT so it sorts in front of song/difficulty panels.")]
-    public float exitForwardLocalZ = SharedExitButtonLayout.ForwardLocalZ;
-    [Tooltip("EXIT rect size on flow screens.")]
-    public Vector2 exitFlowSizeDelta = SharedExitButtonLayout.SizeDelta;
-    [Tooltip("Uniform scale for EXIT on flow screens.")]
-    public float exitFlowScale = SharedExitButtonLayout.UniformScale;
 
     private SongSettings Songsettings;
     private SceneHandling SceneHandling;
     RectTransform _startRt;
-    RectTransform _exitRt;
+    GameObject _menuExitHudRoot;
+    GameObject _menuExitBar;
 
     AudioClip PreviewAudioClip = null;
     bool PlayNewPreview = false;
@@ -48,17 +41,17 @@ public class MainMenu : MonoBehaviour
 
         if (HomeScreenButtonStart != null)
             _startRt = HomeScreenButtonStart.GetComponent<RectTransform>();
-        if (HomeScreenButtonExit != null)
-            _exitRt = HomeScreenButtonExit.GetComponent<RectTransform>();
 
         SyncCanvasScalerWithSharedExitLayout();
 
         if (Title != null && Title.activeSelf)
             SetTitleScreenLayout();
-        else if ((SongChooser != null && SongChooser.activeSelf) ||
-                 (NoSongsFound != null && NoSongsFound.activeSelf) ||
-                 (LevelChooser != null && LevelChooser.activeSelf))
+        else if (SongChooser != null && SongChooser.activeSelf)
+            SetSongChooserScreenLayout();
+        else if (NoSongsFound != null && NoSongsFound.activeSelf)
             SetFlowScreenLayout();
+        else if (LevelChooser != null && LevelChooser.activeSelf)
+            SetLevelChooserScreenLayout();
     }
 
     void SyncCanvasScalerWithSharedExitLayout()
@@ -79,17 +72,30 @@ public class MainMenu : MonoBehaviour
         if (HomeScreenButtonExit != null) HomeScreenButtonExit.SetActive(visible);
     }
 
-    void ApplyExitButtonTopBar()
+    void EnsureMenuExitOverlay()
     {
-        if (_exitRt == null) return;
-        _exitRt.anchorMin = new Vector2(0.5f, 1f);
-        _exitRt.anchorMax = new Vector2(0.5f, 1f);
-        _exitRt.pivot = new Vector2(0.5f, 1f);
-        _exitRt.sizeDelta = exitFlowSizeDelta;
-        _exitRt.localScale = new Vector3(exitFlowScale, exitFlowScale, exitFlowScale);
-        _exitRt.anchoredPosition = new Vector2(0f, exitTopOffsetY);
-        var lp = _exitRt.localPosition;
-        _exitRt.localPosition = new Vector3(lp.x, lp.y, exitForwardLocalZ);
+        if (_menuExitHudRoot != null)
+            return;
+
+        Transform parent = transform.parent != null ? transform.parent : transform;
+        _menuExitHudRoot = MenuExitScreenHud.CreateOverlayCanvasRoot(parent, "MenuFlowExitHud");
+        Font font = MenuExitScreenHud.ResolveMenuFont();
+        _menuExitBar = MenuExitScreenHud.CreateExitBar(_menuExitHudRoot.transform, font, ExitApplication);
+        _menuExitBar.SetActive(false);
+    }
+
+    void SetMenuExitOverlayVisible(bool visible)
+    {
+        if (!visible)
+        {
+            if (_menuExitBar != null)
+                _menuExitBar.SetActive(false);
+            return;
+        }
+
+        EnsureMenuExitOverlay();
+        if (_menuExitBar != null)
+            _menuExitBar.SetActive(true);
     }
 
     void ApplyStartTitleBottomCenter()
@@ -109,14 +115,31 @@ public class MainMenu : MonoBehaviour
         ApplyStartTitleBottomCenter();
         if (HomeScreenButtonStart != null) HomeScreenButtonStart.SetActive(true);
         if (HomeScreenButtonExit != null) HomeScreenButtonExit.SetActive(false);
+        SetMenuExitOverlayVisible(false);
     }
 
-    /// <summary>Songs / no-songs / difficulty / return-from-gameplay: EXIT at top; no START.</summary>
+    /// <summary>No songs: no START, no on-screen EXIT (Esc / Backspace still backs out).</summary>
     void SetFlowScreenLayout()
     {
-        ApplyExitButtonTopBar();
         if (HomeScreenButtonStart != null) HomeScreenButtonStart.SetActive(false);
-        if (HomeScreenButtonExit != null) HomeScreenButtonExit.SetActive(true);
+        if (HomeScreenButtonExit != null) HomeScreenButtonExit.SetActive(false);
+        SetMenuExitOverlayVisible(false);
+    }
+
+    /// <summary>Song browser: screen-space EXIT top center (matches OpenSaber HUD).</summary>
+    void SetSongChooserScreenLayout()
+    {
+        if (HomeScreenButtonStart != null) HomeScreenButtonStart.SetActive(false);
+        if (HomeScreenButtonExit != null) HomeScreenButtonExit.SetActive(false);
+        SetMenuExitOverlayVisible(true);
+    }
+
+    /// <summary>Difficulty list: same screen-space EXIT as song browser.</summary>
+    void SetLevelChooserScreenLayout()
+    {
+        if (HomeScreenButtonStart != null) HomeScreenButtonStart.SetActive(false);
+        if (HomeScreenButtonExit != null) HomeScreenButtonExit.SetActive(false);
+        SetMenuExitOverlayVisible(true);
     }
 
     public void ShowSongs()
@@ -142,7 +165,7 @@ public class MainMenu : MonoBehaviour
         SongInfos.BPM.text = song.BPM;
         SongInfos.Levels.text = song.Difficulties.Count.ToString();
 
-        SetFlowScreenLayout();
+        SetSongChooserScreenLayout();
 
         byte[] byteArray = File.ReadAllBytes(song.CoverImagePath);
         Texture2D sampleTexture = new Texture2D(2, 2);
@@ -178,6 +201,24 @@ public class MainMenu : MonoBehaviour
             yield return null;
 
         PreviewAudioClip = DownloadHandlerAudioClip.GetContent(uwr);
+    }
+
+    void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.Backspace))
+        {
+            if (PanelAreYouSure != null && PanelAreYouSure.activeSelf)
+            {
+                No();
+                return;
+            }
+            if (Title != null && Title.activeSelf)
+                return;
+            if ((SongChooser != null && SongChooser.activeSelf) ||
+                (NoSongsFound != null && NoSongsFound.activeSelf) ||
+                (LevelChooser != null && LevelChooser.activeSelf))
+                ExitApplication();
+        }
     }
 
     private void FixedUpdate()
@@ -251,6 +292,7 @@ public class MainMenu : MonoBehaviour
             SongChooser.gameObject.SetActive(false);
             PanelAreYouSure.gameObject.SetActive(false);
             LevelChooser.gameObject.SetActive(true);
+            SetLevelChooserScreenLayout();
 
             var buttonsCreated = new List<GameObject>();
 
@@ -306,6 +348,7 @@ public class MainMenu : MonoBehaviour
     public void AreYouSure()
     {
         SetHomeScreenButtonsVisible(false);
+        SetMenuExitOverlayVisible(false);
         NoSongsFound.gameObject.SetActive(false);
         Title.gameObject.SetActive(false);
         SongChooser.gameObject.SetActive(false);
@@ -326,7 +369,7 @@ public class MainMenu : MonoBehaviour
     }
 
     /// <summary>
-    /// EXIT: from flow screens → back toward home or song list. Title has no EXIT button; quit is not offered from the default menu screen.
+    /// From flow screens: back toward home or song list (Esc / Backspace, UDP, or legacy references). Title screen does not invoke quit.
     /// </summary>
     public void ExitApplication()
     {
@@ -384,7 +427,7 @@ public class MainMenu : MonoBehaviour
         if (PanelAreYouSure != null) PanelAreYouSure.SetActive(false);
         if (SongChooser != null) SongChooser.SetActive(true);
         if (Title != null) Title.SetActive(false);
-        SetFlowScreenLayout();
+        SetSongChooserScreenLayout();
 
         if (SongPreview != null)
             SongPreview.Stop();

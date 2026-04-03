@@ -15,14 +15,14 @@ RenderSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 10
   m_Fog: 1
-  m_FogColor: {r: 0.1882353, g: 0.61960787, b: 1, a: 1}
+  m_FogColor: {r: 0.22, g: 0.1, b: 0.32, a: 1}
   m_FogMode: 3
-  m_FogDensity: 0.03
+  m_FogDensity: 0.038
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
-  m_AmbientSkyColor: {r: 0.5764706, g: 0.4392157, b: 0.8588236, a: 1}
-  m_AmbientEquatorColor: {r: 0.015, g: 0.04, b: 0.1, a: 1}
-  m_AmbientGroundColor: {r: 0.01, g: 0.025, b: 0.06, a: 1}
+  m_AmbientSkyColor: {r: 0.35, g: 0.22, b: 0.45, a: 1}
+  m_AmbientEquatorColor: {r: 0.05, g: 0.03, b: 0.12, a: 1}
+  m_AmbientGroundColor: {r: 0.03, g: 0.02, b: 0.08, a: 1}
   m_AmbientIntensity: 0.9
   m_AmbientMode: 3
   m_SubtractiveShadowColor: {r: 0, g: 0, b: 0, a: 1}
@@ -172,6 +172,14 @@ PrefabInstance:
       propertyPath: m_PresetInfoIsWorld
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 2098133045, guid: 37d6f3449994d7d45bbd24d84c2c6626, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2098133046, guid: 37d6f3449994d7d45bbd24d84c2c6626, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1082129279852962516, guid: 37d6f3449994d7d45bbd24d84c2c6626,
         type: 3}
       propertyPath: m_Material
@@ -187,10 +195,30 @@ PrefabInstance:
       propertyPath: m_LocalPosition.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 1991880954697994248, guid: 37d6f3449994d7d45bbd24d84c2c6626,
+    - target: {fileID: 2426951134579764532, guid: 37d6f3449994d7d45bbd24d84c2c6626,
         type: 3}
-      propertyPath: m_AnchoredPosition.y
-      value: 154
+      propertyPath: m_Color.b
+      value: 0.98
+      objectReference: {fileID: 0}
+    - target: {fileID: 2426951134579764532, guid: 37d6f3449994d7d45bbd24d84c2c6626,
+        type: 3}
+      propertyPath: m_Color.g
+      value: 0.75
+      objectReference: {fileID: 0}
+    - target: {fileID: 2426951134579764532, guid: 37d6f3449994d7d45bbd24d84c2c6626,
+        type: 3}
+      propertyPath: m_Color.r
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 2426951134579764532, guid: 37d6f3449994d7d45bbd24d84c2c6626,
+        type: 3}
+      propertyPath: m_RaycastTarget
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3068314694486488816, guid: 37d6f3449994d7d45bbd24d84c2c6626,
+        type: 3}
+      propertyPath: m_RaycastTarget
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 3693972839490355324, guid: 37d6f3449994d7d45bbd24d84c2c6626,
         type: 3}
@@ -205,6 +233,16 @@ PrefabInstance:
     - target: {fileID: 5141876265388312549, guid: 37d6f3449994d7d45bbd24d84c2c6626,
         type: 3}
       propertyPath: m_CullTransparentMesh
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5748346916073857420, guid: 37d6f3449994d7d45bbd24d84c2c6626,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6532398448006532483, guid: 37d6f3449994d7d45bbd24d84c2c6626,
+        type: 3}
+      propertyPath: m_AnchoredPosition.x
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6605414175879866589, guid: 37d6f3449994d7d45bbd24d84c2c6626,
@@ -404,7 +442,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &887001002
 Transform:
   m_ObjectHideFlags: 0
@@ -432,9 +470,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b2c3d4e5f6a748899122334455667788, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  fogColorDeep: {r: 0.02, g: 0.05, b: 0.12, a: 1}
-  fogColorBright: {r: 0.12, g: 0.28, b: 0.52, a: 1}
-  fogDensity: 0.032
+  fogColorDeep: {r: 0.04, g: 0.02, b: 0.08, a: 1}
+  fogColorBright: {r: 0.38, g: 0.16, b: 0.42, a: 1}
+  fogDensity: 0.042
   fogRollSpeed: 0.11
 --- !u!224 &981406042 stripped
 RectTransform:

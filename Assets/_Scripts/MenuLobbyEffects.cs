@@ -7,9 +7,12 @@ using UnityEngine;
 [DefaultExecutionOrder(-20)]
 public class MenuLobbyEffects : MonoBehaviour
 {
-    [SerializeField] Color fogColorDeep = new Color(0.02f, 0.05f, 0.12f, 1f);
-    [SerializeField] Color fogColorBright = new Color(0.12f, 0.28f, 0.52f, 1f);
-    [SerializeField] float fogDensity = 0.032f;
+    static readonly Color AccentPurple = new Color(206f / 255f, 123f / 255f, 220f / 255f, 1f);
+    static readonly Color AccentBlue = new Color(49f / 255f, 70f / 255f, 158f / 255f, 1f);
+
+    [SerializeField] Color fogColorDeep = new Color(0.04f, 0.02f, 0.08f, 1f);
+    [SerializeField] Color fogColorBright = new Color(0.38f, 0.16f, 0.42f, 1f);
+    [SerializeField] float fogDensity = 0.042f;
     [SerializeField] float fogRollSpeed = 0.09f;
 
     ParticleSystem _sparks;
@@ -45,7 +48,9 @@ public class MenuLobbyEffects : MonoBehaviour
         float fast = Mathf.Sin(Time.unscaledTime * (fogRollSpeed * 2.17f) + 1.1f) * 0.5f + 0.5f;
         float roll = Mathf.SmoothStep(0f, 1f, slow * 0.65f + fast * 0.35f);
 
-        RenderSettings.fogColor = Color.Lerp(fogColorDeep, fogColorBright, roll);
+        Color deepTint = Color.Lerp(fogColorDeep, AccentBlue * 0.22f, 0.35f);
+        Color brightTint = Color.Lerp(fogColorBright, Color.Lerp(AccentPurple, AccentBlue, 0.45f) * 0.55f, 0.5f);
+        RenderSettings.fogColor = Color.Lerp(deepTint, brightTint, roll);
         float densityRoll = 0.72f + 0.28f * Mathf.Sin(Time.unscaledTime * (fogRollSpeed * 0.85f) + 0.4f);
         RenderSettings.fogDensity = fogDensity * densityRoll;
 
@@ -98,7 +103,7 @@ public class MenuLobbyEffects : MonoBehaviour
         main.startLifetime = new ParticleSystem.MinMaxCurve(2.2f, 5f);
         main.startSpeed = new ParticleSystem.MinMaxCurve(0.12f, 0.45f);
         main.startSize = new ParticleSystem.MinMaxCurve(0.012f, 0.045f);
-        main.startColor = new Color(0.85f, 0.92f, 1f, 0.4f);
+        main.startColor = new Color(0.88f, 0.72f, 1f, 0.42f);
         main.maxParticles = 90;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
         main.gravityModifier = 0f;
@@ -138,15 +143,15 @@ public class MenuLobbyEffects : MonoBehaviour
         main.startSpeed = new ParticleSystem.MinMaxCurve(0.04f, 0.14f);
         main.startSize = new ParticleSystem.MinMaxCurve(5f, 16f);
         main.startColor = new ParticleSystem.MinMaxGradient(
-            new Color(0.15f, 0.35f, 0.72f, 0.45f),
-            new Color(0.25f, 0.55f, 0.95f, 0.55f));
-        main.maxParticles = 220;
+            new Color(0.35f, 0.15f, 0.55f, 0.5f),
+            new Color(0.2f, 0.28f, 0.65f, 0.58f));
+        main.maxParticles = 280;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
         main.gravityModifier = 0f;
         main.scalingMode = ParticleSystemScalingMode.Hierarchy;
 
         var em = ps.emission;
-        em.rateOverTime = 10f;
+        em.rateOverTime = 13f;
 
         var sh = ps.shape;
         sh.shapeType = ParticleSystemShapeType.Sphere;
@@ -155,9 +160,9 @@ public class MenuLobbyEffects : MonoBehaviour
 
         var noise = ps.noise;
         noise.enabled = true;
-        noise.strength = new ParticleSystem.MinMaxCurve(0.25f, 0.55f);
-        noise.frequency = 0.12f;
-        noise.scrollSpeed = 0.06f;
+        noise.strength = new ParticleSystem.MinMaxCurve(0.32f, 0.62f);
+        noise.frequency = 0.1f;
+        noise.scrollSpeed = 0.05f;
         noise.damping = true;
         noise.quality = ParticleSystemNoiseQuality.High;
 
@@ -167,15 +172,16 @@ public class MenuLobbyEffects : MonoBehaviour
         g.SetKeys(
             new[]
             {
-                new GradientColorKey(new Color(0.2f, 0.45f, 0.9f), 0f),
-                new GradientColorKey(new Color(0.35f, 0.65f, 1f), 0.45f),
-                new GradientColorKey(new Color(0.15f, 0.35f, 0.75f), 1f)
+                new GradientColorKey(new Color(0.45f, 0.2f, 0.65f), 0f),
+                new GradientColorKey(new Color(0.25f, 0.35f, 0.75f), 0.4f),
+                new GradientColorKey(new Color(0.55f, 0.35f, 0.85f), 0.72f),
+                new GradientColorKey(new Color(0.18f, 0.22f, 0.55f), 1f)
             },
             new[]
             {
                 new GradientAlphaKey(0f, 0f),
-                new GradientAlphaKey(0.35f, 0.12f),
-                new GradientAlphaKey(0.22f, 0.5f),
+                new GradientAlphaKey(0.4f, 0.12f),
+                new GradientAlphaKey(0.28f, 0.5f),
                 new GradientAlphaKey(0f, 1f)
             });
         col.color = g;
@@ -202,13 +208,13 @@ public class MenuLobbyEffects : MonoBehaviour
         main.startLifetime = new ParticleSystem.MinMaxCurve(10f, 20f);
         main.startSpeed = new ParticleSystem.MinMaxCurve(0.08f, 0.28f);
         main.startSize = new ParticleSystem.MinMaxCurve(1.2f, 4.5f);
-        main.startColor = new Color(0.5f, 0.75f, 1f, 0.35f);
-        main.maxParticles = 180;
+        main.startColor = new Color(0.72f, 0.55f, 0.95f, 0.38f);
+        main.maxParticles = 220;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
         main.gravityModifier = 0f;
 
         var em = ps.emission;
-        em.rateOverTime = 14f;
+        em.rateOverTime = 17f;
 
         var sh = ps.shape;
         sh.shapeType = ParticleSystemShapeType.Hemisphere;
@@ -227,8 +233,13 @@ public class MenuLobbyEffects : MonoBehaviour
         col.enabled = true;
         Gradient g = new Gradient();
         g.SetKeys(
-            new[] { new GradientColorKey(new Color(0.55f, 0.8f, 1f), 0f), new GradientColorKey(new Color(0.2f, 0.45f, 0.95f), 1f) },
-            new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.5f, 0.15f), new GradientAlphaKey(0.12f, 0.7f), new GradientAlphaKey(0f, 1f) });
+            new[]
+            {
+                new GradientColorKey(new Color(0.75f, 0.45f, 0.95f), 0f),
+                new GradientColorKey(new Color(0.35f, 0.4f, 0.85f), 0.55f),
+                new GradientColorKey(new Color(0.22f, 0.3f, 0.62f), 1f)
+            },
+            new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.52f, 0.15f), new GradientAlphaKey(0.14f, 0.7f), new GradientAlphaKey(0f, 1f) });
         col.color = g;
 
         ApplySoftBillboardRenderer(ps);
@@ -249,7 +260,7 @@ public class MenuLobbyEffects : MonoBehaviour
         main.startLifetime = new ParticleSystem.MinMaxCurve(0.5f, 1.2f);
         main.startSpeed = new ParticleSystem.MinMaxCurve(0.15f, 0.45f);
         main.startSize = new ParticleSystem.MinMaxCurve(6f, 14f);
-        main.startColor = new Color(0.35f, 0.55f, 0.95f, 0.14f);
+        main.startColor = new Color(0.55f, 0.35f, 0.9f, 0.16f);
         main.maxParticles = 20;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
         main.gravityModifier = 0f;
@@ -269,8 +280,8 @@ public class MenuLobbyEffects : MonoBehaviour
         col.enabled = true;
         Gradient g = new Gradient();
         g.SetKeys(
-            new[] { new GradientColorKey(new Color(0.5f, 0.7f, 1f), 0f), new GradientColorKey(new Color(0.25f, 0.4f, 0.85f), 1f) },
-            new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.22f, 0.2f), new GradientAlphaKey(0f, 1f) });
+            new[] { new GradientColorKey(new Color(0.75f, 0.5f, 1f), 0f), new GradientColorKey(new Color(0.3f, 0.35f, 0.75f), 1f) },
+            new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.26f, 0.2f), new GradientAlphaKey(0f, 1f) });
         col.color = g;
 
         ApplySoftBillboardRenderer(ps);

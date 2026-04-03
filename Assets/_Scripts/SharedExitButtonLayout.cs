@@ -5,7 +5,7 @@ using UnityEngine;
 /// </summary>
 public static class SharedExitButtonLayout
 {
-    public const float TopOffsetY = -8f;
+    public const float TopOffsetY = 0f;
     public const float Width = 200f;
     public const float Height = 68f;
     public const float UniformScale = 0.82f;

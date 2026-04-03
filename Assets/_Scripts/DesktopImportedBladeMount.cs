@@ -28,8 +28,63 @@ public static class DesktopImportedBladeMount
             EnsureBladeForHand(rightGo, false, prefab, spawner);
     }
 
+    /// <summary>
+    /// <see cref="SceneHandling"/> may reference a prefab asset from the Project window; those roots are not in a loaded scene,
+    /// so <see cref="Transform.SetParent"/> fails with "Prefab Asset" errors. Resolve to the live instance (tag / slices).
+    /// </summary>
+    static GameObject ResolveSaberHandRootInScene(GameObject handRef, bool isLeft)
+    {
+        if (handRef != null && IsInLoadedScene(handRef))
+            return handRef;
+
+        string tag = isLeft ? "LeftSaber" : "RightSaber";
+        var byTag = GameObject.FindGameObjectWithTag(tag);
+        if (byTag != null && IsInLoadedScene(byTag))
+            return byTag;
+        byTag = SceneHandling.FindWithTagIncludingInactive(tag);
+        if (byTag != null && IsInLoadedScene(byTag))
+            return byTag;
+
+        var parents = new List<Transform>();
+        foreach (var slice in Object.FindObjectsByType<Slice>(FindObjectsInactive.Include))
+        {
+            if (slice == null) continue;
+            Transform p = slice.transform.parent;
+            if (p == null) continue;
+            bool dup = false;
+            foreach (var q in parents)
+            {
+                if (q == p) { dup = true; break; }
+            }
+            if (!dup) parents.Add(p);
+        }
+
+        if (parents.Count >= 2)
+        {
+            parents.Sort((a, b) => a.position.x.CompareTo(b.position.x));
+            var pick = isLeft ? parents[0] : parents[parents.Count - 1];
+            if (pick != null && IsInLoadedScene(pick.gameObject))
+                return pick.gameObject;
+        }
+        else if (parents.Count == 1 && IsInLoadedScene(parents[0].gameObject))
+        {
+            return parents[0].gameObject;
+        }
+
+        return null;
+    }
+
+    static bool IsInLoadedScene(GameObject go)
+    {
+        return go != null && go.scene.IsValid() && go.scene.isLoaded;
+    }
+
     static void EnsureBladeForHand(GameObject saberHandRoot, bool isLeft, GameObject importedPrefab, NotesSpawner cfg)
     {
+        saberHandRoot = ResolveSaberHandRootInScene(saberHandRoot, isLeft);
+        if (saberHandRoot == null)
+            return;
+
         DeduplicateNamedBladesUnderHand(saberHandRoot.transform, ImportedBladeChildName);
         DeduplicateNamedBladesUnderHand(saberHandRoot.transform, CapsuleBladeChildName);
 

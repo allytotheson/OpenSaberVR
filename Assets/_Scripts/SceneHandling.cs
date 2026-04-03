@@ -63,18 +63,104 @@ public class SceneHandling : MonoBehaviour
 
     private void EnsureSaberRefs()
     {
-        if (LeftSaber == null)
+        Scene openSaber = SceneManager.GetSceneByName("OpenSaber");
+        bool openLoaded = openSaber.IsValid() && openSaber.isLoaded;
+
+        if (openLoaded)
         {
-            LeftSaber = GameObject.FindGameObjectWithTag("LeftSaber");
+            if (!IsLiveInstanceInScene(LeftSaber, openSaber))
+                LeftSaber = null;
+            if (!IsLiveInstanceInScene(RightSaber, openSaber))
+                RightSaber = null;
+
             if (LeftSaber == null)
-                LeftSaber = FindWithTagIncludingInactive("LeftSaber");
-        }
-        if (RightSaber == null)
-        {
-            RightSaber = GameObject.FindGameObjectWithTag("RightSaber");
+                LeftSaber = ResolveSaberRootInScene(openSaber, true);
             if (RightSaber == null)
-                RightSaber = FindWithTagIncludingInactive("RightSaber");
+                RightSaber = ResolveSaberRootInScene(openSaber, false);
         }
+        else
+        {
+            if (LeftSaber != null && !IsLiveInstanceInAnyLoadedScene(LeftSaber))
+                LeftSaber = null;
+            if (RightSaber != null && !IsLiveInstanceInAnyLoadedScene(RightSaber))
+                RightSaber = null;
+
+            if (LeftSaber == null)
+            {
+                LeftSaber = GameObject.FindGameObjectWithTag("LeftSaber");
+                if (LeftSaber == null)
+                    LeftSaber = FindWithTagIncludingInactive("LeftSaber");
+            }
+            if (RightSaber == null)
+            {
+                RightSaber = GameObject.FindGameObjectWithTag("RightSaber");
+                if (RightSaber == null)
+                    RightSaber = FindWithTagIncludingInactive("RightSaber");
+            }
+        }
+    }
+
+    /// <summary>True for an object that exists in a loaded scene (excludes destroyed refs and project prefab assets).</summary>
+    public static bool IsLiveInstanceInAnyLoadedScene(GameObject go)
+    {
+        return go != null && go.scene.IsValid() && go.scene.isLoaded;
+    }
+
+    static bool IsLiveInstanceInScene(GameObject go, Scene scene)
+    {
+        return go != null && go.scene.IsValid() && go.scene.isLoaded && go.scene == scene;
+    }
+
+    /// <summary>Left/right saber hand roots inside OpenSaber (tag, name, then <see cref="SaberMotionController"/>).</summary>
+    public static GameObject ResolveSaberRootInScene(Scene scene, bool isLeft)
+    {
+        if (!scene.IsValid() || !scene.isLoaded)
+            return null;
+
+        string tag = isLeft ? "LeftSaber" : "RightSaber";
+        GameObject found = FindWithTagInScene(scene, tag);
+        if (found != null)
+            return found;
+
+        string byName = isLeft ? "LeftSaber" : "RightSaber";
+        found = FindByNameInScene(scene, byName);
+        if (found != null)
+            return found;
+
+        foreach (var smc in Object.FindObjectsByType<SaberMotionController>(FindObjectsInactive.Include))
+        {
+            if (smc == null || smc.gameObject.scene != scene)
+                continue;
+            bool matchLeft = smc.hand == SaberMotionController.SaberHand.Left;
+            if (isLeft == matchLeft)
+                return smc.gameObject;
+        }
+
+        return null;
+    }
+
+    public static GameObject FindWithTagInScene(Scene scene, string tag)
+    {
+        if (string.IsNullOrEmpty(tag) || !scene.IsValid() || !scene.isLoaded)
+            return null;
+        foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include))
+        {
+            if (t != null && t.gameObject.scene == scene && t.CompareTag(tag))
+                return t.gameObject;
+        }
+        return null;
+    }
+
+    public static GameObject FindByNameInScene(Scene scene, string objectName)
+    {
+        if (string.IsNullOrEmpty(objectName) || !scene.IsValid() || !scene.isLoaded)
+            return null;
+        foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include))
+        {
+            if (t != null && t.gameObject.scene == scene && t.name == objectName)
+                return t.gameObject;
+        }
+        return null;
     }
 
     /// <summary><see cref="GameObject.FindGameObjectWithTag"/> skips inactive objects; saber roots are often disabled on the menu.</summary>
@@ -92,6 +178,11 @@ public class SceneHandling : MonoBehaviour
 
     private void MenuSceneLoaded()
     {
+        if (LeftSaber != null && !IsLiveInstanceInAnyLoadedScene(LeftSaber))
+            LeftSaber = null;
+        if (RightSaber != null && !IsLiveInstanceInAnyLoadedScene(RightSaber))
+            RightSaber = null;
+
         DesktopSaberHandHalo.DestroyAllWorldHalos();
         if (LeftSaber != null) LeftSaber.SetActive(false);
         if (RightSaber != null) RightSaber.SetActive(false);
@@ -100,6 +191,18 @@ public class SceneHandling : MonoBehaviour
     private void SaberSceneLoaded()
     {
         EnsureSaberRefs();
+        ApplySaberRootsVisible();
+    }
+
+    /// <summary>Re-resolve refs and show sabers after <see cref="SaberGameplayBootstrap"/> wires Slice/hands.</summary>
+    public void RefreshGameplaySabers()
+    {
+        EnsureSaberRefs();
+        ApplySaberRootsVisible();
+    }
+
+    void ApplySaberRootsVisible()
+    {
         if (LeftSaber != null)
         {
             EnsureAncestorsActive(LeftSaber.transform);
@@ -128,9 +231,7 @@ public class SceneHandling : MonoBehaviour
 
     internal IEnumerator LoadScene(string sceneName, LoadSceneMode mode)
     {
-        if (sceneName == "OpenSaber")
-            SaberSceneLoaded();
-        else if (sceneName == "Menu")
+        if (sceneName == "Menu")
             MenuSceneLoaded();
 
         yield return SceneManager.LoadSceneAsync(sceneName, mode);
