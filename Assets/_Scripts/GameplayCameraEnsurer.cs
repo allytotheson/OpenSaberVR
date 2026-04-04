@@ -15,6 +15,9 @@ public sealed class GameplayCameraEnsurer : MonoBehaviour
     /// <summary>Unity’s default primary camera name; <see cref="PersistentScene"/> includes this for desktop play.</summary>
     public const string PrimaryScreenCameraName = "Main Camera";
 
+    /// <summary>Scene that hosts the long-lived desktop <see cref="PrimaryScreenCameraName"/>; wins over same-named cameras in additive scenes.</summary>
+    public const string PersistentSceneName = "PersistentScene";
+
     const string LegacyRuntimeFallbackObjectName = "FallbackCamera_NonVR";
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -118,6 +121,7 @@ public sealed class GameplayCameraEnsurer : MonoBehaviour
         DestroyLegacyFallbackIfRedundant();
 
         SyncPrimaryScreenCameraVersusXr();
+        EnforceSingleMainCameraTagInFlatMode();
         BindWorldSpaceCanvasesToPrimaryCamera();
         NotifyDesktopRig();
     }
@@ -145,9 +149,7 @@ public sealed class GameplayCameraEnsurer : MonoBehaviour
     static bool TryGetPreferredCameraFlat(out Camera cam)
     {
         cam = null;
-        var primaryGo = GameObject.Find(PrimaryScreenCameraName);
-        var primaryCam = primaryGo != null ? primaryGo.GetComponent<Camera>() : null;
-        if (IsRenderable(primaryCam))
+        if (TryGetBestRenderableNamedPrimaryScreenCamera(out var primaryCam))
         {
             cam = primaryCam;
             return true;
@@ -175,6 +177,78 @@ public sealed class GameplayCameraEnsurer : MonoBehaviour
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// All <see cref="PrimaryScreenCameraName"/> cameras (non–VR-rig), ordered with <see cref="PersistentSceneName"/> first,
+    /// then renderable, then <see cref="CompareFlatGameplayCameras"/>.
+    /// </summary>
+    static void CollectNamedPrimaryScreenCameras(List<Camera> into)
+    {
+        into.Clear();
+        foreach (var c in UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsInactive.Include))
+        {
+            if (c == null || c.gameObject.name != PrimaryScreenCameraName || IsVrHeadRigCamera(c))
+                continue;
+            into.Add(c);
+        }
+    }
+
+    static bool TryGetBestRenderableNamedPrimaryScreenCamera(out Camera cam)
+    {
+        cam = null;
+        var list = new List<Camera>();
+        CollectNamedPrimaryScreenCameras(list);
+        if (list.Count == 0)
+            return false;
+        list.Sort(CompareNamedPrimaryCameraCandidates);
+        foreach (var c in list)
+        {
+            if (IsRenderable(c))
+            {
+                cam = c;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static int CompareNamedPrimaryCameraCandidates(Camera a, Camera b)
+    {
+        bool aPer = a.gameObject.scene.name == PersistentSceneName;
+        bool bPer = b.gameObject.scene.name == PersistentSceneName;
+        if (aPer != bPer)
+            return bPer.CompareTo(aPer);
+
+        bool ar = IsRenderable(a);
+        bool br = IsRenderable(b);
+        if (ar != br)
+            return br.CompareTo(ar);
+
+        return CompareFlatGameplayCameras(a, b);
+    }
+
+    /// <summary>
+    /// <see cref="Camera.main"/> uses the <c>MainCamera</c> tag; additive scenes can add a second tagged camera and split
+    /// UI (<see cref="Camera.main"/>) from gameplay (<see cref="TryGetPreferredCamera"/>). Non-XR: exactly one tag, on the preferred camera.
+    /// </summary>
+    static void EnforceSingleMainCameraTagInFlatMode()
+    {
+        if (IsXrDeviceActive())
+            return;
+        if (!TryGetPreferredCameraFlat(out Camera preferred))
+            return;
+        if (!preferred.CompareTag("MainCamera"))
+            preferred.gameObject.tag = "MainCamera";
+
+        foreach (var c in UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsInactive.Include))
+        {
+            if (c == null || c == preferred || !c.CompareTag("MainCamera"))
+                continue;
+            if (IsVrHeadRigCamera(c))
+                continue;
+            c.gameObject.tag = "Untagged";
+        }
     }
 
     /// <summary>Stable ordering so we never alternate between two eligible cameras frame-to-frame.</summary>
@@ -274,14 +348,24 @@ public sealed class GameplayCameraEnsurer : MonoBehaviour
         var legacy = GameObject.Find(LegacyRuntimeFallbackObjectName);
         if (legacy == null)
             return;
-        var primary = GameObject.Find(PrimaryScreenCameraName);
+        var primary = FindBestNamedPrimaryScreenCameraObject();
         if (primary != null && primary != legacy)
             UnityEngine.Object.Destroy(legacy);
     }
 
+    static GameObject FindBestNamedPrimaryScreenCameraObject()
+    {
+        var list = new List<Camera>();
+        CollectNamedPrimaryScreenCameras(list);
+        if (list.Count == 0)
+            return null;
+        list.Sort(CompareNamedPrimaryCameraCandidates);
+        return list[0].gameObject;
+    }
+
     static void ActivateOrCreatePrimaryScreenCamera()
     {
-        var go = GameObject.Find(PrimaryScreenCameraName);
+        var go = FindBestNamedPrimaryScreenCameraObject();
         if (go == null)
             go = new GameObject(PrimaryScreenCameraName);
         go.SetActive(true);
@@ -302,7 +386,7 @@ public sealed class GameplayCameraEnsurer : MonoBehaviour
 
     static void SyncPrimaryScreenCameraVersusXr()
     {
-        var primaryGo = GameObject.Find(PrimaryScreenCameraName);
+        var primaryGo = FindBestNamedPrimaryScreenCameraObject();
         var primaryCam = primaryGo != null ? primaryGo.GetComponent<Camera>() : null;
         if (primaryCam == null)
             return;
