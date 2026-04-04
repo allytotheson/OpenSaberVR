@@ -25,8 +25,6 @@ public sealed class GameplayCameraEnsurer : MonoBehaviour
         var go = new GameObject(nameof(GameplayCameraEnsurer));
         DontDestroyOnLoad(go);
         go.AddComponent<GameplayCameraEnsurer>();
-        if (go.GetComponent<DeveloperGameplayMode>() == null)
-            go.AddComponent<DeveloperGameplayMode>();
 #if UNITY_EDITOR || UNITY_STANDALONE
         if (go.GetComponent<DesktopBuiltInPostStackEnsurer>() == null)
             go.AddComponent<DesktopBuiltInPostStackEnsurer>();

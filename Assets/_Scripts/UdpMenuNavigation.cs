@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
@@ -13,8 +14,10 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public class UdpMenuNavigation : MonoBehaviour
 {
-    public UDPSaberReceiver receiver;
-    [Tooltip("Use left UDP port (5000) for menu; set false to use right.")]
+    [FormerlySerializedAs("receiver")]
+    [Tooltip("UDP or serial IMU receiver on this GameObject (or drag explicitly).")]
+    public MonoBehaviour imuSource;
+    [Tooltip("Use left-hand channel (UDP port 5000 or left COM) for menu; set false for right.")]
     public bool useLeftPort = true;
     public bool enableNavigation = true;
 
@@ -34,20 +37,25 @@ public class UdpMenuNavigation : MonoBehaviour
 
     void Awake()
     {
-        if (receiver == null)
-            receiver = GetComponent<UDPSaberReceiver>();
+        if (imuSource == null)
+        {
+            imuSource = GetComponent<UDPSaberReceiver>() as MonoBehaviour
+                     ?? GetComponent<SerialSaberReceiver>() as MonoBehaviour
+                     ?? ImuSourceResolver.GetActiveSourceBehaviour();
+        }
     }
 
     void Update()
     {
-        if (!enableNavigation || receiver == null)
+        var imu = imuSource as IImuSaberReceiver;
+        if (!enableNavigation || imu == null)
             return;
 
         var mm = Object.FindAnyObjectByType<MainMenu>();
         if (mm == null)
             return;
 
-        var d = useLeftPort ? receiver.LeftSaberData : receiver.RightSaberData;
+        var d = useLeftPort ? imu.LeftSaberData : imu.RightSaberData;
         if (!d.valid || !d.hasControllerExtras)
             return;
 

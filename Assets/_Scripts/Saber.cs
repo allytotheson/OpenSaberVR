@@ -1,99 +1,41 @@
-﻿using UnityEngine;
+using UnityEngine;
 using VRTK;
 
+/// <summary>
+/// VRTK haptics for saber hits. Hit detection is now unified through
+/// <see cref="SwingDetector"/> + <see cref="DemonHitDetector"/> for all input modes.
+/// Call <see cref="TriggerHitHaptic"/> from <see cref="DemonHitDetector"/> on successful hits.
+/// </summary>
 public class Saber : MonoBehaviour
 {
-    public LayerMask layer;
-    private Vector3 previousPos;
-    private Slice slicer;
+    [SerializeField] private float impactMagnifier = 120f;
+    [SerializeField] private float maxCollisionForce = 4000f;
 
-    private float impactMagnifier = 120f;
-    private float collisionForce = 0f;
-    private float maxCollisionForce = 4000f;
     private VRTK_ControllerReference controllerReference;
 
-    private void Start()
+    void Start()
     {
-        slicer = GetComponentInChildren<Slice>(true);
         var controllerEvent = GetComponentInChildren<VRTK_ControllerEvents>(true);
         if (controllerEvent != null && controllerEvent.gameObject != null)
-        {
             controllerReference = VRTK_ControllerReference.GetControllerReference(controllerEvent.gameObject);
-        }
     }
 
-    private void Pulse()
+    /// <summary>
+    /// Triggers a haptic pulse scaled by controller velocity. Called by <see cref="DemonHitDetector"/> on hit.
+    /// </summary>
+    public void TriggerHitHaptic()
     {
         if (VRTK_ControllerReference.IsValid(controllerReference))
         {
-            collisionForce = VRTK_DeviceFinder.GetControllerVelocity(controllerReference).magnitude * impactMagnifier;
-            var hapticStrength = collisionForce / maxCollisionForce;
+            float force = VRTK_DeviceFinder.GetControllerVelocity(controllerReference).magnitude * impactMagnifier;
+            float hapticStrength = force / maxCollisionForce;
             VRTK_ControllerHaptics.TriggerHapticPulse(controllerReference, hapticStrength, 0.5f, 0.01f);
         }
         else
         {
             var controllerEvent = GetComponentInChildren<VRTK_ControllerEvents>();
             if (controllerEvent != null && controllerEvent.gameObject != null)
-            {
                 controllerReference = VRTK_ControllerReference.GetControllerReference(controllerEvent.gameObject);
-            }
         }
-    }
-
-    void Update()
-    {
-        RaycastHit hit;
-        if (Physics.Raycast(transform.position, transform.forward, out hit, 1f, layer))
-        {
-            if (!string.IsNullOrWhiteSpace(hit.transform.tag) && hit.transform.CompareTag("CubeNonDirection"))
-            {
-                if (Vector3.Angle(transform.position - previousPos, hit.transform.up) > 130 ||
-                    Vector3.Angle(transform.position - previousPos, hit.transform.right) > 130 ||
-                    Vector3.Angle(transform.position - previousPos, -hit.transform.up) > 130 ||
-                    Vector3.Angle(transform.position - previousPos, -hit.transform.right) > 130)
-                {
-                    SliceObject(hit.transform);
-                }
-            }
-            else
-            {
-                if (Vector3.Angle(transform.position - previousPos, hit.transform.up) > 130)
-                {
-                    SliceObject(hit.transform);
-                }
-            }
-        }
-        
-        previousPos = transform.position;
-    }
-
-    private void SliceObject(Transform hittedObject)
-    {
-        var cutted = slicer.SliceObject(hittedObject.gameObject);
-        var go = Instantiate(hittedObject.gameObject);
-
-        go.GetComponent<CubeHandling>().enabled = false;
-        go.GetComponentInChildren<BoxCollider>().enabled = false;
-        go.layer = 0;
-
-        foreach (var renderer in go.transform.GetComponentsInChildren<MeshRenderer>())
-        {
-            renderer.enabled = false;
-        }
-
-        foreach (var cut in cutted)
-        {
-            cut.transform.SetParent(go.transform);
-            cut.AddComponent<BoxCollider>();
-            var rigid = cut.AddComponent<Rigidbody>();
-            rigid.useGravity = true;
-        }
-
-        go.transform.SetPositionAndRotation(hittedObject.position, hittedObject.rotation);
-
-        Pulse();
-
-        Destroy(hittedObject.gameObject);
-        Destroy(go, 2f);
     }
 }

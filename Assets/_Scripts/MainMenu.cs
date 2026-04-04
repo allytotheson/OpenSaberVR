@@ -142,6 +142,18 @@ public class MainMenu : MonoBehaviour
         SetMenuExitOverlayVisible(true);
     }
 
+    /// <summary>
+    /// Assigns <see cref="SongSettings.CurrentSong"/> from <see cref="LoadSongInfos.AllSongs"/> using <see cref="SongSettings.CurrentSongIndex"/>.
+    /// Call before any path that loads OpenSaber or reads the current row (handles list rebuilds in <see cref="LoadSongInfos.OnEnable"/>).
+    /// </summary>
+    void EnsureCurrentSongReference()
+    {
+        if (Songsettings == null || SongInfos == null || SongInfos.AllSongs == null || SongInfos.AllSongs.Count == 0)
+            return;
+        int idx = Mathf.Clamp(Songsettings.CurrentSongIndex, 0, SongInfos.AllSongs.Count - 1);
+        Songsettings.CurrentSong = SongInfos.AllSongs[idx];
+    }
+
     public void ShowSongs()
     {
         if (SongInfos.AllSongs.Count == 0)
@@ -152,7 +164,7 @@ public class MainMenu : MonoBehaviour
             return;
         }
 
-        Songsettings.CurrentSong = SongInfos.AllSongs[SongInfos.CurrentSong];
+        EnsureCurrentSongReference();
 
         Title.gameObject.SetActive(false);
         PanelAreYouSure.gameObject.SetActive(false);
@@ -278,7 +290,14 @@ public class MainMenu : MonoBehaviour
     public void LoadSong()
     {
         SongPreview.Stop();
+        EnsureCurrentSongReference();
         var song = SongInfos.GetCurrentSong();
+        if (song == null)
+        {
+            Debug.LogError("[MainMenu] No current song. Open the song list from the title screen first.");
+            return;
+        }
+
         if(song.Difficulties.Count > 1)
         {
             foreach (var gameObj in LevelChooser.GetComponentsInChildren<Button>(true))
@@ -335,13 +354,33 @@ public class MainMenu : MonoBehaviour
 
     private void StartSceneWithDifficulty(string difficulty)
     {
-        SongInfos.GetCurrentSong().SelectedDifficulty = difficulty;
+        EnsureCurrentSongReference();
+        var song = SongInfos.GetCurrentSong();
+        if (song == null)
+        {
+            Debug.LogError("[MainMenu] No current song to play. Open the song list from the title screen first, or add maps under Assets/Playlists.");
+            return;
+        }
+
+        song.SelectedDifficulty = difficulty;
         StartCoroutine(LoadSongScene());
     }
 
     private IEnumerator LoadSongScene()
     {
+        EnsureCurrentSongReference();
+
+        // IMU receivers live in OpenSaber — show calibration after load if any receiver exists (non-VR).
+        GameplayCalibrationGate.BlocksNoteTimeline = true;
         yield return SceneHandling.LoadScene("OpenSaber", LoadSceneMode.Additive);
+
+        bool anyImuComponent = Object.FindAnyObjectByType<SerialSaberReceiver>() != null
+                               || Object.FindAnyObjectByType<UDPSaberReceiver>() != null;
+        if (anyImuComponent && !GameplayCameraEnsurer.IsXrDeviceActive())
+            CalibrationSceneBootstrap.EnsureCalibrationScene();
+        else
+            GameplayCalibrationGate.BlocksNoteTimeline = false;
+
         yield return SceneHandling.UnloadScene("Menu");
     }
 

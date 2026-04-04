@@ -45,6 +45,11 @@ public class DesktopSaberTestInput : MonoBehaviour
     public Vector3 leftHandLocal = new Vector3(-0.72f, -0.11f, 0.72f);
     public Vector3 rightHandLocal = new Vector3(0.72f, -0.11f, 0.72f);
 
+    [Header("Desktop scene vs camera")]
+    [Tooltip("Non-VR auto-align: if the hand root is farther than this from the camera anchor (e.g. OpenSaber scene pose down-track), snap to target instead of lerping — avoids swords visibly flying in from the track.")]
+    [Min(0f)]
+    public float desktopSnapIfBeyondMeters = 2.75f;
+
     [Header("Desktop blade aim")]
     [Range(0f, 1f)]
     [Tooltip("Tips aim toward screen center / blocks; 0 keeps the old mostly-down-track diagonal.")]
@@ -139,9 +144,7 @@ public class DesktopSaberTestInput : MonoBehaviour
         if (cam == null)
             return;
 
-        bool autoAlign = DeveloperGameplayMode.Enabled
-            ? GameplayDebugHud.AutoAlignSabersToNotes
-            : autoAlignSabersToNotes;
+        bool autoAlign = autoAlignSabersToNotes;
 
         Vector3 flatF = cam.forward; flatF.y = 0f;
         if (flatF.sqrMagnitude < 0.01f) flatF = Vector3.forward;
@@ -171,9 +174,12 @@ public class DesktopSaberTestInput : MonoBehaviour
             return true;
         foreach (var motion in saber.GetComponentsInChildren<SaberMotionController>(true))
         {
-            if (motion == null || motion.receiver == null)
+            if (motion == null)
                 continue;
-            var p = isLeft ? motion.receiver.LeftSaberData : motion.receiver.RightSaberData;
+            var imu = motion.GetActiveImuSource();
+            if (imu == null)
+                continue;
+            var p = isLeft ? imu.LeftSaberData : imu.RightSaberData;
             if (p.valid)
                 return false;
         }
@@ -186,11 +192,6 @@ public class DesktopSaberTestInput : MonoBehaviour
         if (swing == null) swing = saber.GetComponentInChildren<SwingDetector>();
 
         bool keyboardDrives = ShouldUseKeyboard(saber, isLeft);
-        foreach (var motion in saber.GetComponentsInChildren<SaberMotionController>(true))
-        {
-            if (motion != null)
-                motion.enabled = !keyboardDrives;
-        }
 
         if (!keyboardDrives)
             return;
@@ -201,14 +202,9 @@ public class DesktopSaberTestInput : MonoBehaviour
         float effSmoothing = alignSmoothing;
         if (nonXrDesktop)
             effSmoothing = Mathf.Max(effSmoothing, desktopAlignSmoothing);
-        if (DeveloperGameplayMode.Enabled && DeveloperGameplayMode.Instance != null)
-            effSmoothing = Mathf.Max(effSmoothing, DeveloperGameplayMode.Instance.developerAlignSmoothing);
         float smooth = 1f - Mathf.Exp(-effSmoothing * dt);
 
         bool calmDesktop = nonXrDesktop && suppressDesktopIdleJitter;
-        if (DeveloperGameplayMode.Enabled && DeveloperGameplayMode.Instance != null &&
-            DeveloperGameplayMode.Instance.suppressSaberIdleJitter)
-            calmDesktop = true;
 
         if (autoAlign)
         {
@@ -266,8 +262,16 @@ public class DesktopSaberTestInput : MonoBehaviour
                 (Mathf.PerlinNoise(Time.time * jitterFrequency, seed) - 0.5f) * 2f * rotationJitterDegrees * rotJitScale,
                 (Mathf.PerlinNoise(seed + 2f, Time.time * jitterFrequency * 0.9f) - 0.5f) * 2f * rotationJitterDegrees * rotJitScale);
 
-            t.position = Vector3.Lerp(t.position, targetPos, smooth);
-            t.rotation = Quaternion.Slerp(t.rotation, targetRot, smooth);
+            if (nonXrDesktop && desktopSnapIfBeyondMeters > 0f &&
+                Vector3.Distance(t.position, targetPos) > desktopSnapIfBeyondMeters)
+            {
+                t.SetPositionAndRotation(targetPos, targetRot);
+            }
+            else
+            {
+                t.position = Vector3.Lerp(t.position, targetPos, smooth);
+                t.rotation = Quaternion.Slerp(t.rotation, targetRot, smooth);
+            }
         }
         else
         {

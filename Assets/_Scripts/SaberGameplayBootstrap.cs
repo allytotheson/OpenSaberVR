@@ -3,14 +3,17 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Wires desktop gameplay: <see cref="SwingDetector"/> + <see cref="DemonHitDetector"/> on blade objects
-/// (with <see cref="Slice"/>), tags hand roots, fills <see cref="SceneHandling"/> refs, and adds
-/// <see cref="DesktopSaberTestInput"/> when not in XR. Safe to call multiple times.
+/// Wires gameplay components on blade objects: <see cref="SwingDetector"/> + <see cref="DemonHitDetector"/>
+/// (all platforms, including VR), tags hand roots, fills <see cref="SceneHandling"/> refs, ensures
+/// <see cref="UDPSaberReceiver"/> + <see cref="SaberMotionController"/> + <see cref="ImuSaberInputProvider"/>
+/// so IMU data from Pico W drives saber transforms. Safe to call multiple times.
 /// </summary>
 public static class SaberGameplayBootstrap
 {
     public static void EnsureAfterGameplayLoad()
     {
+        EnsureUdpReceiver();
+
         Scene open = SceneManager.GetSceneByName("OpenSaber");
         bool openLoaded = open.IsValid() && open.isLoaded;
 
@@ -52,7 +55,6 @@ public static class SaberGameplayBootstrap
             GameObject blade = s.gameObject;
             RemoveDuplicateComponents<SwingDetector>(blade);
             RemoveDuplicateComponents<DemonHitDetector>(blade);
-            RemoveDuplicateComponents<DesktopSaberBladeVisual>(blade);
 
             if (blade.GetComponent<SwingDetector>() == null)
                 blade.AddComponent<SwingDetector>();
@@ -69,6 +71,9 @@ public static class SaberGameplayBootstrap
 #endif
         }
 
+        EnsureImuInputOnHand(leftHand, SaberMotionController.SaberHand.Left);
+        EnsureImuInputOnHand(rightHand, SaberMotionController.SaberHand.Right);
+
         var sh = Object.FindAnyObjectByType<SceneHandling>();
         if (sh != null)
         {
@@ -80,37 +85,61 @@ public static class SaberGameplayBootstrap
 #if UNITY_EDITOR || UNITY_STANDALONE
         if (!GameplayCameraEnsurer.IsXrDeviceActive())
         {
-            foreach (var s in slices)
-            {
-                if (s == null) continue;
-                if (s.GetComponent<DesktopSaberBladeVisual>() == null)
-                    s.gameObject.AddComponent<DesktopSaberBladeVisual>();
-            }
-
             var spawner = Object.FindAnyObjectByType<NotesSpawner>();
             if (spawner != null)
-            {
-                RemoveDuplicateComponents<DesktopSaberTestInput>(spawner.gameObject);
-                RemoveDuplicateComponents<DesktopCameraMountSaberVisual>(spawner.gameObject);
-                RemoveDuplicateComponents<DesktopAutoSliceHits>(spawner.gameObject);
                 RemoveDuplicateComponents<UdpSelectToSwingBridge>(spawner.gameObject);
-            }
 
-            if (spawner != null && spawner.GetComponent<DesktopSaberTestInput>() == null)
-                spawner.gameObject.AddComponent<DesktopSaberTestInput>();
+            bool hasImuSource = Object.FindAnyObjectByType<UDPSaberReceiver>() != null ||
+                                Object.FindAnyObjectByType<SerialSaberReceiver>() != null;
 
-            if (spawner != null)
-                DesktopImportedBladeMount.AttachFromNotesSpawner(spawner);
-
-            if (spawner != null && spawner.GetComponent<DesktopCameraMountSaberVisual>() == null)
-                spawner.gameObject.AddComponent<DesktopCameraMountSaberVisual>();
-
-            if (spawner != null && spawner.GetComponent<DesktopAutoSliceHits>() == null)
-                spawner.gameObject.AddComponent<DesktopAutoSliceHits>();
-
-            if (spawner != null && Object.FindAnyObjectByType<UDPSaberReceiver>() != null &&
+            if (spawner != null && hasImuSource &&
                 spawner.GetComponent<UdpSelectToSwingBridge>() == null)
                 spawner.gameObject.AddComponent<UdpSelectToSwingBridge>();
+        }
+#endif
+    }
+
+    /// <summary>
+    /// Creates a persistent <see cref="UDPSaberReceiver"/> if none exists in any loaded scene.
+    /// This allows Pico W controllers to send IMU data over UDP even when only
+    /// <see cref="SerialSaberReceiver"/> was placed in the scene.
+    /// </summary>
+    static void EnsureUdpReceiver()
+    {
+        if (Object.FindAnyObjectByType<UDPSaberReceiver>() != null)
+            return;
+
+        var go = new GameObject("[UDPSaberReceiver]");
+        Object.DontDestroyOnLoad(go);
+        go.AddComponent<UDPSaberReceiver>();
+        Debug.Log("[SaberGameplayBootstrap] Created persistent UDPSaberReceiver (ports 5000/5001) for Pico W IMU input.");
+    }
+
+    /// <summary>
+    /// Adds <see cref="SaberMotionController"/>, <see cref="ImuSaberInputProvider"/>, and
+    /// <see cref="DesktopSaberInputProvider"/> on a saber hand root so the priority system
+    /// (IMU 50 > Desktop 10) drives the transform from real controller data when available.
+    /// </summary>
+    static void EnsureImuInputOnHand(GameObject hand, SaberMotionController.SaberHand saberHand)
+    {
+        if (hand == null)
+            return;
+
+        var mc = hand.GetComponent<SaberMotionController>();
+        if (mc == null)
+        {
+            mc = hand.AddComponent<SaberMotionController>();
+            mc.hand = saberHand;
+        }
+
+        if (hand.GetComponent<ImuSaberInputProvider>() == null)
+            hand.AddComponent<ImuSaberInputProvider>();
+
+#if UNITY_EDITOR || UNITY_STANDALONE
+        if (!GameplayCameraEnsurer.IsXrDeviceActive())
+        {
+            if (hand.GetComponent<DesktopSaberInputProvider>() == null)
+                hand.AddComponent<DesktopSaberInputProvider>();
         }
 #endif
     }

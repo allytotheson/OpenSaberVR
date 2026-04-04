@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 /// <summary>
 /// When UDP packets include <see cref="UDPSaberReceiver.IMUPacket.selectPressed"/> (joystick SW),
@@ -7,18 +8,20 @@ using UnityEngine;
 [DefaultExecutionOrder(58)]
 public class UdpSelectToSwingBridge : MonoBehaviour
 {
-    public UDPSaberReceiver receiver;
+    [FormerlySerializedAs("receiver")]
+    public MonoBehaviour imuSource;
     bool _prevLeftSel;
     bool _prevRightSel;
 
     void Awake()
     {
-        if (receiver == null)
-            receiver = FindAnyObjectByType<UDPSaberReceiver>();
+        if (imuSource == null)
+            imuSource = ImuSourceResolver.GetActiveSourceBehaviour();
     }
 
     void Update()
     {
+        var receiver = imuSource as IImuSaberReceiver;
         if (receiver == null)
             return;
         if (!DesktopSaberTestInput.TryResolveSabers(out GameObject left, out GameObject right))

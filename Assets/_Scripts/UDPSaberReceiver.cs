@@ -10,7 +10,7 @@ using UnityEngine;
 /// Formats: "ax,ay,az,gx,gy,gz" or extended "ax,ay,az,gx,gy,gz,jx,jy,sw" (jx,jy normalized 0..1, sw 1=select pressed).
 /// See PicoW_Controller_Reference.txt.
 /// </summary>
-public class UDPSaberReceiver : MonoBehaviour
+public class UDPSaberReceiver : MonoBehaviour, IImuSaberReceiver
 {
     [Header("UDP Ports (one per saber)")]
     [Tooltip("Port for left saber (Pico W controller 1)")]
@@ -59,34 +59,41 @@ public class UDPSaberReceiver : MonoBehaviour
         leftSaberData = new IMUPacket { valid = false };
         rightSaberData = new IMUPacket { valid = false };
 
-        try
+        leftClient = TryBindPort(leftSaberPort, "left");
+        if (leftClient != null)
         {
-            leftClient = new UdpClient(leftSaberPort);
-            leftClient.Client.ReceiveTimeout = 100;
             leftThread = new Thread(() => ReceiveLoop(leftClient, leftLock, (d) => leftSaberData = d)) { IsBackground = true };
             leftThread.Start();
         }
-        catch (Exception e)
-        {
-            Debug.LogWarning($"[UDPSaberReceiver] Left saber port {leftSaberPort}: {e.Message}");
-        }
 
-        try
+        rightClient = TryBindPort(rightSaberPort, "right");
+        if (rightClient != null)
         {
-            rightClient = new UdpClient(rightSaberPort);
-            rightClient.Client.ReceiveTimeout = 100;
             rightThread = new Thread(() => ReceiveLoop(rightClient, rightLock, (d) => rightSaberData = d)) { IsBackground = true };
             rightThread.Start();
-        }
-        catch (Exception e)
-        {
-            Debug.LogWarning($"[UDPSaberReceiver] Right saber port {rightSaberPort}: {e.Message}");
         }
 
         Debug.Log($"[UDPSaberReceiver] Listening on ports {leftSaberPort} (left), {rightSaberPort} (right). Format: ax,ay,az,gx,gy,gz[,jx,jy,sw]");
 
         if (GetComponent<UdpMenuNavigation>() == null)
             gameObject.AddComponent<UdpMenuNavigation>();
+    }
+
+    static UdpClient TryBindPort(int port, string label)
+    {
+        try
+        {
+            var client = new UdpClient();
+            client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            client.Client.Bind(new IPEndPoint(IPAddress.Any, port));
+            client.Client.ReceiveTimeout = 100;
+            return client;
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"[UDPSaberReceiver] {label} saber port {port}: {e.Message}");
+            return null;
+        }
     }
 
     private void ReceiveLoop(UdpClient client, object lockObj, Action<IMUPacket> setData)

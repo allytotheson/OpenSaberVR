@@ -15,6 +15,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using UObject = UnityEngine.Object;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
@@ -116,6 +117,20 @@ public class NotesSpawner : MonoBehaviour
     private bool audioLoaded = false;
 
     /// <summary>
+    /// If the menu is still loaded, copy the current row from <see cref="LoadSongInfos"/> into <see cref="SongSettings.CurrentSong"/>.
+    /// </summary>
+    static void TrySyncCurrentSongFromSongBrowser(SongSettings settings)
+    {
+        if (settings == null)
+            return;
+        var infos = UObject.FindAnyObjectByType<LoadSongInfos>();
+        if (infos == null || infos.AllSongs == null || infos.AllSongs.Count == 0)
+            return;
+        int idx = Mathf.Clamp(settings.CurrentSongIndex, 0, infos.AllSongs.Count - 1);
+        settings.CurrentSong = infos.AllSongs[idx];
+    }
+
+    /// <summary>
     /// Matches menu labels like "ExpertPlus (Standard)" or "ExpertPlus (NoArrows)"; plain "ExpertPlus" picks the first set that contains it.
     /// </summary>
     private static void TryResolveBeatmap(JSONObject infoFile, string songFolder, string selectedDifficulty, out string audioPath, out string beatmapJson)
@@ -164,9 +179,55 @@ public class NotesSpawner : MonoBehaviour
 
     void Start()
     {
-        Songsettings = GameObject.FindGameObjectWithTag("SongSettings").GetComponent<SongSettings>();
-        SceneHandling = GameObject.FindGameObjectWithTag("SceneHandling").GetComponent<SceneHandling>();
+        GameObject songGo = GameObject.FindGameObjectWithTag("SongSettings");
+        if (songGo == null)
+        {
+            Debug.LogError("[NotesSpawner] No GameObject with tag SongSettings. Open gameplay from the menu after choosing a song (do not play OpenSaber in isolation).");
+            enabled = false;
+            return;
+        }
+
+        Songsettings = songGo.GetComponent<SongSettings>();
+        if (Songsettings == null)
+        {
+            Debug.LogError("[NotesSpawner] SongSettings component missing on the SongSettings object.");
+            enabled = false;
+            return;
+        }
+
+        if (Songsettings.CurrentSong == null)
+            TrySyncCurrentSongFromSongBrowser(Songsettings);
+
+        if (Songsettings.CurrentSong == null)
+        {
+            Debug.LogError("[NotesSpawner] No song selected (SongSettings.CurrentSong is null). From the title screen: Start → pick a song → Play. If you use Enter Play Mode Options without Reload Domain, try a full play-mode restart.");
+            enabled = false;
+            return;
+        }
+
+        GameObject sceneGo = GameObject.FindGameObjectWithTag("SceneHandling");
+        if (sceneGo == null)
+        {
+            Debug.LogError("[NotesSpawner] No GameObject with tag SceneHandling.");
+            enabled = false;
+            return;
+        }
+
+        SceneHandling = sceneGo.GetComponent<SceneHandling>();
+        if (SceneHandling == null)
+        {
+            Debug.LogError("[NotesSpawner] SceneHandling component missing on the SceneHandling object.");
+            enabled = false;
+            return;
+        }
+
         string path = Songsettings.CurrentSong.Path;
+        if (string.IsNullOrEmpty(path))
+        {
+            Debug.LogError("[NotesSpawner] Current song has no folder path.");
+            enabled = false;
+            return;
+        }
         if (Directory.Exists(path))
         {
             if (Directory.GetFiles(path, "info.dat").Length > 0)
@@ -178,12 +239,10 @@ public class NotesSpawner : MonoBehaviour
 
         audioSource = GetComponent<AudioSource>();
 
-        DeveloperGameplayMode.EnsureOnSpawner(transform);
         GameplayDebugHud.EnsureCreated(transform);
 
         if (string.IsNullOrEmpty(jsonString))
         {
-            StartCoroutine(SetupDesktopImportedBladesNextFrame());
             Debug.LogError("[NotesSpawner] No beatmap for this song/difficulty (missing info.dat map or wrong SelectedDifficulty).");
             enabled = false;
             return;
@@ -242,26 +301,10 @@ public class NotesSpawner : MonoBehaviour
             guideGo.AddComponent<BeatSaberHitLineGuide>();
         }
 
-        if (FindAnyObjectByType<SaberNearestBlockAlignmentProvider>() == null)
+        if (UObject.FindAnyObjectByType<SaberNearestBlockAlignmentProvider>() == null)
             gameObject.AddComponent<SaberNearestBlockAlignmentProvider>();
 
         SaberGameplayBootstrap.EnsureAfterGameplayLoad();
-        StartCoroutine(AttachImportedBladesEndOfFrame());
-    }
-
-    IEnumerator SetupDesktopImportedBladesNextFrame()
-    {
-        yield return null;
-        DesktopImportedBladeMount.AttachFromNotesSpawner(this);
-    }
-
-    IEnumerator AttachImportedBladesEndOfFrame()
-    {
-        yield return null;
-#if UNITY_EDITOR || UNITY_STANDALONE
-        if (!GameplayCameraEnsurer.IsXrDeviceActive())
-            DesktopImportedBladeMount.AttachFromNotesSpawner(this);
-#endif
     }
 
     /// <summary>Loads a sword model placed under a <c>Resources</c> folder (path without extension).</summary>
@@ -313,6 +356,9 @@ public class NotesSpawner : MonoBehaviour
 
     void Update()
     {
+        if (GameplayCalibrationGate.BlocksNoteTimeline)
+            return;
+
         var prevBeatsTime = BeatsTime;
 
         if (BeatsPreloadTime == null)
