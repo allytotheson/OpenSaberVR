@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 using UnityEngine.XR;
 
@@ -133,6 +134,12 @@ public sealed class GameplayCameraEnsurer : MonoBehaviour
 #else
         return true;
 #endif
+    }
+
+    static bool UsesScriptableRenderPipeline()
+    {
+        return GraphicsSettings.defaultRenderPipeline != null
+               || QualitySettings.renderPipeline != null;
     }
 
     /// <summary>
@@ -375,7 +382,9 @@ public sealed class GameplayCameraEnsurer : MonoBehaviour
         if (cam == null)
             cam = go.AddComponent<Camera>();
         cam.enabled = true;
-        cam.stereoTargetEye = StereoTargetEyeMask.None;
+        // stereoTargetEye is only valid on the built-in renderer; SRP logs a warning if we touch it.
+        if (!UsesScriptableRenderPipeline())
+            cam.stereoTargetEye = StereoTargetEyeMask.None;
         if (go.GetComponent<AudioListener>() == null)
             go.AddComponent<AudioListener>();
 

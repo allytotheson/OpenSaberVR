@@ -74,7 +74,8 @@ Last updated for: MicroPython v1.27+, Pico W, MPU6050 (I2C), analog joystick.
 --------------------------------------------------------------------------------
 3) UNITY — UDP packet format (UDPSaberReceiver.cs)
 --------------------------------------------------------------------------------
-  Ports: Left = 5000, Right = 5001 (Inspector).
+  Ports: Right = 5000, Left = 5001 (Inspector defaults in UDPSaberReceiver.cs).
+  Send RIGHT-hand Pico to PC_IP:5000 and LEFT-hand Pico to PC_IP:5001.
 
   Minimum (IMU only), six floats — use a dot as decimal separator:
     ax,ay,az,gx,gy,gz
@@ -132,7 +133,7 @@ Last updated for: MicroPython v1.27+, Pico W, MPU6050 (I2C), analog joystick.
   SSID = "YOUR_WIFI"
   PASSWORD = "YOUR_PASSWORD"
   PC_IP = "192.168.1.42"   # ipconfig on Windows
-  PORT = 5000              # 5001 for right-hand Pico
+  PORT = 5000              # Right hand: 5000. Left hand: 5001.
 
   # --- Joystick (ADC 0..65535 → 0..1 for Unity) ---
   adc_x = ADC(26)

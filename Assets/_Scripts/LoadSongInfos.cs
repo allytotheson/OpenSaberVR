@@ -11,11 +11,12 @@ public class LoadSongInfos : MonoBehaviour
     {
         get
         {
-            return Songsettings.CurrentSongIndex;
+            return Songsettings != null ? Songsettings.CurrentSongIndex : 0;
         }
         set
         {
-            Songsettings.CurrentSongIndex = value;
+            if (Songsettings != null)
+                Songsettings.CurrentSongIndex = value;
         }
     }
 
@@ -28,11 +29,67 @@ public class LoadSongInfos : MonoBehaviour
 
     private void Awake()
     {
-        Songsettings = GameObject.FindGameObjectWithTag("SongSettings").GetComponent<SongSettings>();
+        Songsettings = FindSongSettingsInstance();
+        if (Songsettings == null)
+            Debug.LogError(
+                "[LoadSongInfos] SongSettings not found. Open PersistentScene and press Play (it loads Menu additively), " +
+                "or add a GameObject with SongSettings to the scene. See Editor → Project Settings → Editor Build Settings: PersistentScene should be index 0.");
+        ResolveUiFieldReferences();
+    }
+
+    /// <summary>Rebinds text/cover fields if scene overrides cleared Inspector references (same hierarchy as Main_Menu prefab).</summary>
+    void ResolveUiFieldReferences()
+    {
+        if (SongName != null && Artist != null && BPM != null && Levels != null && Cover != null)
+            return;
+
+        var songChooser = transform.Find("SongChooser");
+        if (songChooser == null)
+            return;
+
+        if (SongName == null)
+        {
+            var t = songChooser.Find("SongName");
+            if (t != null) SongName = t.GetComponent<Text>();
+        }
+
+        if (Artist == null)
+        {
+            var t = songChooser.Find("Artist");
+            if (t != null) Artist = t.GetComponent<Text>();
+        }
+
+        if (BPM == null)
+        {
+            var t = songChooser.Find("BPM");
+            if (t != null) BPM = t.GetComponent<Text>();
+        }
+
+        if (Levels == null)
+        {
+            var t = songChooser.Find("Difficulty");
+            if (t != null) Levels = t.GetComponent<Text>();
+        }
+
+        if (Cover == null)
+        {
+            var t = songChooser.Find("Image");
+            if (t != null) Cover = t.GetComponent<RawImage>();
+        }
+    }
+
+    static SongSettings FindSongSettingsInstance()
+    {
+        var s = UnityEngine.Object.FindAnyObjectByType<SongSettings>(FindObjectsInactive.Include);
+        if (s != null)
+            return s;
+        var go = GameObject.FindGameObjectWithTag("SongSettings");
+        return go != null ? go.GetComponent<SongSettings>() : null;
     }
 
     private void OnEnable()
     {
+        ResolveUiFieldReferences();
         AllSongs.Clear();
         string path = Path.Combine(Application.dataPath + "/Playlists");
         if (Directory.Exists(path))
@@ -80,6 +137,8 @@ public class LoadSongInfos : MonoBehaviour
 
     public Song NextSong()
     {
+        if (Songsettings == null || AllSongs.Count == 0)
+            return null;
         CurrentSong++;
         if(CurrentSong > AllSongs.Count - 1)
         {
@@ -93,6 +152,8 @@ public class LoadSongInfos : MonoBehaviour
 
     public Song PreviousSong()
     {
+        if (Songsettings == null || AllSongs.Count == 0)
+            return null;
         CurrentSong--;
         if (CurrentSong < 0)
         {
@@ -106,7 +167,7 @@ public class LoadSongInfos : MonoBehaviour
 
     public Song GetCurrentSong()
     {
-        return Songsettings.CurrentSong;
+        return Songsettings != null ? Songsettings.CurrentSong : null;
     }
 }
 

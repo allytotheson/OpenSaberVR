@@ -9,6 +9,16 @@ using UnityEngine.UI;
 
 public class MainMenu : MonoBehaviour
 {
+    /// <summary>Unity tags on <c>Main_Menu</c> panels (see TagManager + prefab). Used when Inspector references are missing.</summary>
+    public const string TagSongChooser = "MenuSongChooser";
+    public const string TagTitle = "MenuTitle";
+    public const string TagLevelChooser = "MenuLevelChooser";
+    public const string TagAreYouSure = "MenuAreYouSure";
+    public const string TagNoSongsFound = "MenuNoSongsFound";
+    public const string TagHomeStart = "MenuHomeStart";
+    public const string TagHomeExit = "MenuHomeExit";
+    public const string TagLevelButtonTemplate = "MenuLevelButtonTemplate";
+
     public GameObject SongChooser;
     public LoadSongInfos SongInfos;
     public GameObject PanelAreYouSure;
@@ -32,8 +42,31 @@ public class MainMenu : MonoBehaviour
 
     private void Awake()
     {
-        Songsettings = GameObject.FindGameObjectWithTag("SongSettings").GetComponent<SongSettings>();
-        SceneHandling = GameObject.FindGameObjectWithTag("SceneHandling").GetComponent<SceneHandling>();
+        ResolveMainMenuUiReferences();
+
+        Songsettings = UnityEngine.Object.FindAnyObjectByType<SongSettings>(FindObjectsInactive.Include);
+        if (Songsettings == null)
+        {
+            var songGo = GameObject.FindGameObjectWithTag("SongSettings");
+            if (songGo != null)
+                Songsettings = songGo.GetComponent<SongSettings>();
+        }
+        if (Songsettings == null)
+            Debug.LogError(
+                "[MainMenu] SongSettings not found. Enter play mode from PersistentScene (build index 0) so SongSettings exists, " +
+                "or add SongSettings to this scene.");
+
+        SceneHandling = UnityEngine.Object.FindAnyObjectByType<SceneHandling>(FindObjectsInactive.Include);
+        if (SceneHandling == null)
+        {
+            var shGo = GameObject.FindGameObjectWithTag("SceneHandling");
+            if (shGo != null)
+                SceneHandling = shGo.GetComponent<SceneHandling>();
+        }
+        if (SceneHandling == null)
+            Debug.LogError(
+                "[MainMenu] SceneHandling not found. Enter play mode from PersistentScene (build index 0), " +
+                "or add SceneHandling to this scene.");
 
         var cv = GetComponent<Canvas>();
         if (cv != null && cv.worldCamera == null && Camera.main != null)
@@ -52,6 +85,57 @@ public class MainMenu : MonoBehaviour
             SetFlowScreenLayout();
         else if (LevelChooser != null && LevelChooser.activeSelf)
             SetLevelChooserScreenLayout();
+    }
+
+    /// <summary>Fills missing serialized references from tags or direct children of this canvas (same names as in Main_Menu prefab).</summary>
+    void ResolveMainMenuUiReferences()
+    {
+        Transform root = transform;
+
+        if (SongChooser == null)
+            SongChooser = ResolveByTagOrChildName(root, TagSongChooser, "SongChooser");
+        if (Title == null)
+            Title = ResolveByTagOrChildName(root, TagTitle, "Title");
+        if (LevelChooser == null)
+            LevelChooser = ResolveByTagOrChildName(root, TagLevelChooser, "DifficultChooser");
+        if (PanelAreYouSure == null)
+            PanelAreYouSure = ResolveByTagOrChildName(root, TagAreYouSure, "AreYouSurePanel");
+        if (NoSongsFound == null)
+            NoSongsFound = ResolveByTagOrChildName(root, TagNoSongsFound, "NoSongsFound");
+        if (LevelButtonTemplate == null)
+            LevelButtonTemplate = ResolveByTagOrChildName(root, TagLevelButtonTemplate, "ButtonTemplate");
+        if (HomeScreenButtonStart == null)
+            HomeScreenButtonStart = ResolveByTagOrChildName(root, TagHomeStart, "Btn_Start");
+        if (HomeScreenButtonExit == null)
+            HomeScreenButtonExit = ResolveByTagOrChildName(root, TagHomeExit, "Btn_Exit");
+
+        if (SongInfos == null)
+            SongInfos = GetComponent<LoadSongInfos>();
+        if (SongPreview == null)
+            SongPreview = GetComponent<AudioSource>();
+    }
+
+    static GameObject ResolveByTagOrChildName(Transform canvasRoot, string tag, string childName)
+    {
+        Transform t = canvasRoot.Find(childName);
+        if (t != null)
+            return t.gameObject;
+
+        if (!string.IsNullOrEmpty(tag))
+        {
+            try
+            {
+                var byTag = GameObject.FindGameObjectWithTag(tag);
+                if (byTag != null)
+                    return byTag;
+            }
+            catch (UnityException)
+            {
+                // Tag not defined in Tag Manager.
+            }
+        }
+
+        return null;
     }
 
     void SyncCanvasScalerWithSharedExitLayout()
@@ -106,7 +190,7 @@ public class MainMenu : MonoBehaviour
         _startRt.pivot = new Vector2(0.5f, 0.5f);
         _startRt.anchoredPosition = new Vector2(0f, -298f);
         var lp = _startRt.localPosition;
-        _startRt.localPosition = new Vector3(lp.x, lp.y, 0f);
+        _startRt.localPosition = new Vector3(lp.x, lp.y, 0.15f);
     }
 
     /// <summary>Title: large START only at bottom center; no EXIT.</summary>
@@ -156,44 +240,50 @@ public class MainMenu : MonoBehaviour
 
     public void ShowSongs()
     {
-        if (SongInfos.AllSongs.Count == 0)
+        if (SongInfos == null || SongInfos.AllSongs == null || SongInfos.AllSongs.Count == 0)
         {
-            Title.gameObject.SetActive(false);
-            NoSongsFound.gameObject.SetActive(true);
+            if (Title != null) Title.SetActive(false);
+            if (NoSongsFound != null) NoSongsFound.SetActive(true);
             SetFlowScreenLayout();
             return;
         }
 
         EnsureCurrentSongReference();
 
-        Title.gameObject.SetActive(false);
-        PanelAreYouSure.gameObject.SetActive(false);
-        LevelChooser.gameObject.SetActive(false);
-        SongChooser.gameObject.SetActive(true);
-        var song = SongInfos.GetCurrentSong();
-
-        SongInfos.SongName.text = song.Name;
-        SongInfos.Artist.text = song.AuthorName;
-        SongInfos.BPM.text = song.BPM;
-        SongInfos.Levels.text = song.Difficulties.Count.ToString();
+        if (Title != null) Title.SetActive(false);
+        if (PanelAreYouSure != null) PanelAreYouSure.SetActive(false);
+        if (LevelChooser != null) LevelChooser.SetActive(false);
+        if (SongChooser != null) SongChooser.SetActive(true);
 
         SetSongChooserScreenLayout();
+
+        var song = SongInfos.GetCurrentSong();
+        if (song == null)
+        {
+            Debug.LogError("[MainMenu] No current song after EnsureCurrentSongReference.");
+            return;
+        }
+
+        if (SongInfos.SongName != null) SongInfos.SongName.text = song.Name;
+        if (SongInfos.Artist != null) SongInfos.Artist.text = song.AuthorName;
+        if (SongInfos.BPM != null) SongInfos.BPM.text = song.BPM;
+        if (SongInfos.Levels != null) SongInfos.Levels.text = song.Difficulties.Count.ToString();
 
         byte[] byteArray = File.ReadAllBytes(song.CoverImagePath);
         Texture2D sampleTexture = new Texture2D(2, 2);
         bool isLoaded = sampleTexture.LoadImage(byteArray);
 
-        if (isLoaded)
-        {
+        if (isLoaded && SongInfos.Cover != null)
             SongInfos.Cover.texture = sampleTexture;
-        }
 
-        StartCoroutine(PreviewSong(Songsettings.CurrentSong.AudioFilePath));
+        if (Songsettings != null && Songsettings.CurrentSong != null)
+            StartCoroutine(PreviewSong(Songsettings.CurrentSong.AudioFilePath));
     }
 
     public IEnumerator PreviewSong(string audioFilePath)
     {
-        SongPreview.Stop();
+        if (SongPreview != null)
+            SongPreview.Stop();
         PreviewAudioClip = null;
         PlayNewPreview = true;
 
@@ -235,7 +325,7 @@ public class MainMenu : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (PreviewAudioClip != null && PlayNewPreview)
+        if (PreviewAudioClip != null && PlayNewPreview && SongPreview != null)
         {
             PlayNewPreview = false;
             SongPreview.Stop();
@@ -248,48 +338,51 @@ public class MainMenu : MonoBehaviour
     public void NextSong()
     {
         var song = SongInfos.NextSong();
+        if (song == null)
+            return;
 
-        SongInfos.SongName.text = song.Name;
-        SongInfos.Artist.text = song.AuthorName;
-        SongInfos.BPM.text = song.BPM;
-        SongInfos.Levels.text = song.Difficulties.Count.ToString();
+        if (SongInfos.SongName != null) SongInfos.SongName.text = song.Name;
+        if (SongInfos.Artist != null) SongInfos.Artist.text = song.AuthorName;
+        if (SongInfos.BPM != null) SongInfos.BPM.text = song.BPM;
+        if (SongInfos.Levels != null) SongInfos.Levels.text = song.Difficulties.Count.ToString();
 
         byte[] byteArray = File.ReadAllBytes(song.CoverImagePath);
         Texture2D sampleTexture = new Texture2D(2, 2);
         bool isLoaded = sampleTexture.LoadImage(byteArray);
 
-        if (isLoaded)
-        {
+        if (isLoaded && SongInfos.Cover != null)
             SongInfos.Cover.texture = sampleTexture;
-        }
 
-        StartCoroutine(PreviewSong(Songsettings.CurrentSong.AudioFilePath));
+        if (Songsettings != null && Songsettings.CurrentSong != null)
+            StartCoroutine(PreviewSong(Songsettings.CurrentSong.AudioFilePath));
     }
 
     public void PreviousSong()
     {
         var song = SongInfos.PreviousSong();
+        if (song == null)
+            return;
 
-        SongInfos.SongName.text = song.Name;
-        SongInfos.Artist.text = song.AuthorName;
-        SongInfos.BPM.text = song.BPM;
-        SongInfos.Levels.text = song.Difficulties.Count.ToString();
+        if (SongInfos.SongName != null) SongInfos.SongName.text = song.Name;
+        if (SongInfos.Artist != null) SongInfos.Artist.text = song.AuthorName;
+        if (SongInfos.BPM != null) SongInfos.BPM.text = song.BPM;
+        if (SongInfos.Levels != null) SongInfos.Levels.text = song.Difficulties.Count.ToString();
 
         byte[] byteArray = File.ReadAllBytes(song.CoverImagePath);
         Texture2D sampleTexture = new Texture2D(2, 2);
         bool isLoaded = sampleTexture.LoadImage(byteArray);
 
-        if (isLoaded)
-        {
+        if (isLoaded && SongInfos.Cover != null)
             SongInfos.Cover.texture = sampleTexture;
-        }
 
-        StartCoroutine(PreviewSong(Songsettings.CurrentSong.AudioFilePath));
+        if (Songsettings != null && Songsettings.CurrentSong != null)
+            StartCoroutine(PreviewSong(Songsettings.CurrentSong.AudioFilePath));
     }
 
     public void LoadSong()
     {
-        SongPreview.Stop();
+        if (SongPreview != null)
+            SongPreview.Stop();
         EnsureCurrentSongReference();
         var song = SongInfos.GetCurrentSong();
         if (song == null)
@@ -368,6 +461,12 @@ public class MainMenu : MonoBehaviour
 
     private IEnumerator LoadSongScene()
     {
+        if (SceneHandling == null)
+        {
+            Debug.LogError("[MainMenu] Cannot load OpenSaber: SceneHandling is missing.");
+            yield break;
+        }
+
         EnsureCurrentSongReference();
 
         // IMU receivers live in OpenSaber — show calibration after load if any receiver exists (non-VR).

@@ -13,10 +13,10 @@ using UnityEngine;
 public class UDPSaberReceiver : MonoBehaviour, IImuSaberReceiver
 {
     [Header("UDP Ports (one per saber)")]
-    [Tooltip("Port for left saber (Pico W controller 1)")]
-    public int leftSaberPort = 5000;
-    [Tooltip("Port for right saber (Pico W controller 2)")]
-    public int rightSaberPort = 5001;
+    [Tooltip("Port the LEFT-hand Pico W sends to. Default 5001 — set PORT = 5001 in firmware main.py.")]
+    public int leftSaberPort = 5001;
+    [Tooltip("Port the RIGHT-hand Pico W sends to. Default 5000 — set PORT = 5000 in firmware main.py.")]
+    public int rightSaberPort = 5000;
 
     [Header("Data (read-only)")]
     [SerializeField] private IMUPacket leftSaberData;
@@ -29,6 +29,10 @@ public class UDPSaberReceiver : MonoBehaviour, IImuSaberReceiver
     private volatile bool running = true;
     private readonly object leftLock = new object();
     private readonly object rightLock = new object();
+    // Parse-failure counters per hand: log once every N failures to avoid log spam.
+    private int _leftParseFailures;
+    private int _rightParseFailures;
+    private const int ParseFailureLogInterval = 20;
 
     public IMUPacket LeftSaberData
     {
@@ -62,18 +66,20 @@ public class UDPSaberReceiver : MonoBehaviour, IImuSaberReceiver
         leftClient = TryBindPort(leftSaberPort, "left");
         if (leftClient != null)
         {
-            leftThread = new Thread(() => ReceiveLoop(leftClient, leftLock, (d) => leftSaberData = d)) { IsBackground = true };
+            leftThread = new Thread(() => ReceiveLoop(leftClient, leftLock, (d) => leftSaberData = d, ref _leftParseFailures)) { IsBackground = true };
             leftThread.Start();
         }
 
         rightClient = TryBindPort(rightSaberPort, "right");
         if (rightClient != null)
         {
-            rightThread = new Thread(() => ReceiveLoop(rightClient, rightLock, (d) => rightSaberData = d)) { IsBackground = true };
+            rightThread = new Thread(() => ReceiveLoop(rightClient, rightLock, (d) => rightSaberData = d, ref _rightParseFailures)) { IsBackground = true };
             rightThread.Start();
         }
 
-        Debug.Log($"[UDPSaberReceiver] Listening on ports {leftSaberPort} (left), {rightSaberPort} (right). Format: ax,ay,az,gx,gy,gz[,jx,jy,sw]");
+        Debug.Log($"[UDPSaberReceiver] Listening — right hand port {rightSaberPort}, left hand port {leftSaberPort}. " +
+                  $"Firmware: RIGHT Pico PORT={rightSaberPort}, LEFT Pico PORT={leftSaberPort}. " +
+                  $"Packet: ax,ay,az,gx,gy,gz[,jx,jy,sw]. Calibration requires 9-field packets.");
 
         if (GetComponent<UdpMenuNavigation>() == null)
             gameObject.AddComponent<UdpMenuNavigation>();
@@ -96,7 +102,7 @@ public class UDPSaberReceiver : MonoBehaviour, IImuSaberReceiver
         }
     }
 
-    private void ReceiveLoop(UdpClient client, object lockObj, Action<IMUPacket> setData)
+    private void ReceiveLoop(UdpClient client, object lockObj, Action<IMUPacket> setData, ref int failureCounter)
     {
         IPEndPoint remote = new IPEndPoint(IPAddress.Any, 0);
         while (running && client != null)
@@ -106,11 +112,25 @@ public class UDPSaberReceiver : MonoBehaviour, IImuSaberReceiver
                 byte[] bytes = client.Receive(ref remote);
                 string raw = System.Text.Encoding.UTF8.GetString(bytes);
                 var p = ParsePacket(raw);
-                lock (lockObj) { setData(p); }
+                if (p.valid)
+                {
+                    failureCounter = 0;
+                    lock (lockObj) { setData(p); }
+                }
+                else
+                {
+                    failureCounter++;
+                    if (failureCounter % ParseFailureLogInterval == 1)
+                    {
+                        string snippet = raw.Length > 80 ? raw.Substring(0, 80) + "…" : raw;
+                        Debug.LogWarning($"[UDPSaberReceiver] Parse failed (failure #{failureCounter}). " +
+                                         $"Raw bytes: \"{snippet}\" — expected ax,ay,az,gx,gy,gz[,jx,jy,sw]");
+                    }
+                }
             }
-            catch (SocketException) { /* timeout */ }
+            catch (SocketException) { /* receive timeout — normal */ }
             catch (ObjectDisposedException) { break; }
-            catch (Exception ex) { Debug.LogWarning($"[UDPSaberReceiver] Parse error: {ex.Message}"); }
+            catch (Exception ex) { Debug.LogWarning($"[UDPSaberReceiver] Receive error: {ex.Message}"); }
         }
     }
 
@@ -122,7 +142,8 @@ public class UDPSaberReceiver : MonoBehaviour, IImuSaberReceiver
         var p = new IMUPacket { valid = false, timestamp = Time.realtimeSinceStartup };
         if (string.IsNullOrWhiteSpace(raw)) return p;
 
-        string s = raw.Trim();
+        // Strip UTF-8 BOM (\uFEFF) and any surrounding whitespace/CR that may arrive from MicroPython.
+        string s = raw.TrimStart('\uFEFF').Trim();
         char[] sep = { ',', ' ', '\t' };
         string[] parts = s.Split(sep, StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length < 6)

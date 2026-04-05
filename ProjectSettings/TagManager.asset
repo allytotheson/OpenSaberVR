@@ -12,6 +12,14 @@ TagManager:
   - Demon
   - LeftSaber
   - RightSaber
+  - MenuSongChooser
+  - MenuTitle
+  - MenuLevelChooser
+  - MenuAreYouSure
+  - MenuNoSongsFound
+  - MenuHomeStart
+  - MenuHomeExit
+  - MenuLevelButtonTemplate
   layers:
   - Default
   - TransparentFX

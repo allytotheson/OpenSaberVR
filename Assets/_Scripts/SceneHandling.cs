@@ -258,6 +258,9 @@ public class SceneHandling : MonoBehaviour
     {
         DesktopSaberHandHalo.DestroyAllWorldHalos();
 
+        // Always clear the calibration gate so the next gameplay session starts fresh.
+        GameplayCalibrationGate.BlocksNoteTimeline = false;
+
         var spawner = FindAnyObjectByType<NotesSpawner>();
         if (spawner != null)
         {
@@ -267,7 +270,12 @@ public class SceneHandling : MonoBehaviour
                 audio.Stop();
         }
 
-        if (IsSceneLoaded("OpenSaber"))
+        // Unload Calibration before OpenSaber in case it references objects in OpenSaber.
+        if (IsSceneLoaded("Calibration"))
+            yield return UnloadScene("Calibration");
+
+        // Unload ALL loaded copies of OpenSaber in case calibration loaded a duplicate instance.
+        while (IsSceneLoaded("OpenSaber"))
             yield return UnloadScene("OpenSaber");
 
         if (!IsSceneLoaded("Menu"))

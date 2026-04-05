@@ -5,8 +5,13 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
-/// Calibration screen: hold the controller button for 3 seconds per hand to capture rest orientation
+/// Calibration screen: hold still and press the controller button (9-field UDP packets) or the
+/// keyboard keys (6-field / button-less packets) for 3 seconds per hand to capture rest orientation
 /// and gyro bias. Builds its own UI at runtime. Loaded between Menu and OpenSaber.
+///
+/// 9-field packets (ax,ay,az,gx,gy,gz,jx,jy,sw): SW button triggers per-hand hold.
+/// 6-field packets (ax,ay,az,gx,gy,gz): keyboard fallback — hold A (left) / D (right), or Space for both.
+/// See PicoW_Controller_Reference.txt §3 for format details.
 /// </summary>
 public class ImuCalibrationController : MonoBehaviour
 {
@@ -21,6 +26,10 @@ public class ImuCalibrationController : MonoBehaviour
     private bool _leftDone;
     private bool _rightDone;
     private bool _advancing;
+    // True when at least one hand has received valid 9-field (controller-extras) data.
+    private bool _has9FieldData;
+    // True when at least one hand has received valid 6-field (IMU-only) data.
+    private bool _has6FieldData;
 
     private readonly List<Vector3> _leftGyroSamples = new List<Vector3>(256);
     private readonly List<Vector3> _leftAccelSamples = new List<Vector3>(256);
@@ -54,13 +63,28 @@ public class ImuCalibrationController : MonoBehaviour
             return;
         }
 
+        // Detect whether we are receiving 9-field or 6-field packets and update instruction text.
+        if (!_has9FieldData && imu.LeftSaberData.valid && imu.LeftSaberData.hasControllerExtras)
+            _has9FieldData = true;
+        if (!_has9FieldData && imu.RightSaberData.valid && imu.RightSaberData.hasControllerExtras)
+            _has9FieldData = true;
+        if (!_has6FieldData && imu.LeftSaberData.valid && !imu.LeftSaberData.hasControllerExtras)
+            _has6FieldData = true;
+        if (!_has6FieldData && imu.RightSaberData.valid && !imu.RightSaberData.hasControllerExtras)
+            _has6FieldData = true;
+
+        bool leftKeyHeld  = Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.Space);
+        bool rightKeyHeld = Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.Space);
+
         UpdateHand(imu.LeftSaberData, SaberMotionController.SaberHand.Left,
             ref _leftHoldTime, ref _leftDone, _leftGyroSamples, _leftAccelSamples,
-            _leftBar, _leftLabel);
+            _leftBar, _leftLabel, leftKeyHeld);
 
         UpdateHand(imu.RightSaberData, SaberMotionController.SaberHand.Right,
             ref _rightHoldTime, ref _rightDone, _rightGyroSamples, _rightAccelSamples,
-            _rightBar, _rightLabel);
+            _rightBar, _rightLabel, rightKeyHeld);
+
+        UpdateInstructionText();
 
         if (_leftDone && _rightDone && !_advancing)
         {
@@ -76,7 +100,7 @@ public class ImuCalibrationController : MonoBehaviour
     void UpdateHand(UDPSaberReceiver.IMUPacket data, SaberMotionController.SaberHand hand,
         ref float holdTime, ref bool done,
         List<Vector3> gyroSamples, List<Vector3> accelSamples,
-        Image bar, Text label)
+        Image bar, Text label, bool keyboardHeld)
     {
         if (done)
         {
@@ -85,7 +109,7 @@ public class ImuCalibrationController : MonoBehaviour
             return;
         }
 
-        if (!data.valid || !data.hasControllerExtras)
+        if (!data.valid)
         {
             label.text = hand + ": waiting for data...";
             bar.fillAmount = 0f;
@@ -95,7 +119,11 @@ public class ImuCalibrationController : MonoBehaviour
             return;
         }
 
-        if (data.selectPressed)
+        // Trigger: controller button (9-field) OR keyboard fallback (6-field / no extras).
+        bool holdTriggered = (data.hasControllerExtras && data.selectPressed) ||
+                             (!data.hasControllerExtras && keyboardHeld);
+
+        if (holdTriggered)
         {
             holdTime += Time.deltaTime;
             gyroSamples.Add(data.angularVelocity);
@@ -115,7 +143,22 @@ public class ImuCalibrationController : MonoBehaviour
             gyroSamples.Clear();
             accelSamples.Clear();
             bar.fillAmount = 0f;
-            label.text = hand + ": press & hold button";
+            label.text = data.hasControllerExtras
+                ? hand + ": press & hold button"
+                : hand + ": hold key (A=Left, D=Right, Space=Both)";
+        }
+    }
+
+    void UpdateInstructionText()
+    {
+        if (_has9FieldData)
+        {
+            _instructionText.text = "Hold your controller in rest position\nand press the button for 3 seconds.";
+        }
+        else if (_has6FieldData)
+        {
+            _instructionText.text = "IMU-only packets detected (no button).\n" +
+                "Hold [A] for Left, [D] for Right, or [Space] for both.";
         }
     }
 
@@ -173,15 +216,23 @@ public class ImuCalibrationController : MonoBehaviour
         }
         else
         {
-            SceneManager.LoadScene("OpenSaber", LoadSceneMode.Additive);
-            SceneManager.UnloadSceneAsync("Calibration");
+            if (!SceneManager.GetSceneByName("OpenSaber").isLoaded)
+                SceneManager.LoadScene("OpenSaber", LoadSceneMode.Additive);
+            var calScene = SceneManager.GetSceneByName("Calibration");
+            if (calScene.IsValid() && calScene.isLoaded)
+                SceneManager.UnloadSceneAsync("Calibration");
         }
     }
 
     IEnumerator LoadViaSceneHandling(SceneHandling sh)
     {
-        yield return sh.LoadScene("OpenSaber", LoadSceneMode.Additive);
-        yield return sh.UnloadScene("Calibration");
+        // Only load OpenSaber if it is not already loaded (Menu may have loaded it already).
+        if (!sh.IsSceneLoaded("OpenSaber"))
+            yield return sh.LoadScene("OpenSaber", LoadSceneMode.Additive);
+
+        // Always unload the Calibration scene after we are done with it.
+        if (sh.IsSceneLoaded("Calibration"))
+            yield return sh.UnloadScene("Calibration");
     }
 
     // ---- Procedural UI ----
@@ -209,8 +260,8 @@ public class ImuCalibrationController : MonoBehaviour
         Font font = GetDefaultFont();
 
         _instructionText = CreateText(canvasGo.transform, "Instructions", font,
-            "Hold your controller in rest position\nand press the button for 3 seconds.",
-            32, new Vector2(0f, 180f));
+            "Hold your controller in rest position\nand press the button for 3 seconds.\n(or hold [A]/[D]/[Space] if no button data)",
+            28, new Vector2(0f, 180f));
 
         _leftLabel = CreateText(canvasGo.transform, "LeftLabel", font, "Left: press & hold button", 24, new Vector2(-240f, 40f));
         _leftBar = CreateProgressBar(canvasGo.transform, "LeftBar", new Vector2(-240f, -10f), new Color(0.2f, 0.5f, 1f));

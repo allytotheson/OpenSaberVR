@@ -8,13 +8,13 @@ public static class ImuSourceResolver
 {
     public static IImuSaberReceiver GetActiveSource()
     {
-        foreach (var serial in Object.FindObjectsByType<SerialSaberReceiver>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (var serial in Object.FindObjectsByType<SerialSaberReceiver>(FindObjectsInactive.Exclude))
         {
             if (serial != null && serial.isActiveAndEnabled && serial.HasOpenSerialPort)
                 return serial;
         }
 
-        foreach (var udp in Object.FindObjectsByType<UDPSaberReceiver>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (var udp in Object.FindObjectsByType<UDPSaberReceiver>(FindObjectsInactive.Exclude))
         {
             if (udp != null && udp.isActiveAndEnabled)
                 return udp;
