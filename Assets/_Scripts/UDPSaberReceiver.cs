@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Concurrent;
 using System.Globalization;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -34,6 +36,18 @@ public class UDPSaberReceiver : MonoBehaviour, IImuSaberReceiver
     private int _rightParseFailures;
     private const int ParseFailureLogInterval = 20;
 
+    [Header("Debug CSV")]
+    [Tooltip("Enable to write every received UDP packet to a CSV file for network/parse debugging. " +
+             "CSV path is logged to the Console on startup. Disable when not debugging to avoid disk writes.")]
+    public bool debugCsvEnabled = true;
+    [Tooltip("Leave blank to use Application.persistentDataPath/udp_debug.csv")]
+    public string debugCsvPath = "";
+
+    // Background-thread-safe queue; flushed to file in Update() on the main thread.
+    private readonly ConcurrentQueue<string> _csvQueue = new ConcurrentQueue<string>();
+    private StreamWriter _csvWriter;
+    private string _resolvedCsvPath;
+
     public IMUPacket LeftSaberData
     {
         get { lock (leftLock) { return leftSaberData; } }
@@ -66,14 +80,14 @@ public class UDPSaberReceiver : MonoBehaviour, IImuSaberReceiver
         leftClient = TryBindPort(leftSaberPort, "left");
         if (leftClient != null)
         {
-            leftThread = new Thread(() => ReceiveLoop(leftClient, leftLock, (d) => leftSaberData = d, ref _leftParseFailures)) { IsBackground = true };
+            leftThread = new Thread(() => ReceiveLoop(leftClient, leftLock, (d) => leftSaberData = d, ref _leftParseFailures, "left")) { IsBackground = true };
             leftThread.Start();
         }
 
         rightClient = TryBindPort(rightSaberPort, "right");
         if (rightClient != null)
         {
-            rightThread = new Thread(() => ReceiveLoop(rightClient, rightLock, (d) => rightSaberData = d, ref _rightParseFailures)) { IsBackground = true };
+            rightThread = new Thread(() => ReceiveLoop(rightClient, rightLock, (d) => rightSaberData = d, ref _rightParseFailures, "right")) { IsBackground = true };
             rightThread.Start();
         }
 
@@ -81,8 +95,45 @@ public class UDPSaberReceiver : MonoBehaviour, IImuSaberReceiver
                   $"Firmware: RIGHT Pico PORT={rightSaberPort}, LEFT Pico PORT={leftSaberPort}. " +
                   $"Packet: ax,ay,az,gx,gy,gz[,jx,jy,sw]. Calibration requires 9-field packets.");
 
+        if (debugCsvEnabled)
+            OpenCsvWriter();
+
         if (GetComponent<UdpMenuNavigation>() == null)
             gameObject.AddComponent<UdpMenuNavigation>();
+    }
+
+    void Update()
+    {
+        if (_csvWriter == null || _csvQueue.IsEmpty)
+            return;
+
+        while (_csvQueue.TryDequeue(out string line))
+        {
+            try { _csvWriter.WriteLine(line); }
+            catch { /* disk full / permissions */ }
+        }
+        try { _csvWriter.Flush(); }
+        catch { }
+    }
+
+    void OpenCsvWriter()
+    {
+        _resolvedCsvPath = string.IsNullOrWhiteSpace(debugCsvPath)
+            ? Path.Combine(Application.persistentDataPath, "udp_debug.csv")
+            : debugCsvPath;
+
+        try
+        {
+            _csvWriter = new StreamWriter(_resolvedCsvPath, append: false);
+            _csvWriter.WriteLine("time_s,hand,raw,valid,ax,ay,az,gx,gy,gz,hasExtras,jx,jy,sw");
+            _csvWriter.Flush();
+            Debug.Log($"[UDPSaberReceiver] Debug CSV open: {_resolvedCsvPath}");
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"[UDPSaberReceiver] Could not open debug CSV at {_resolvedCsvPath}: {e.Message}");
+            _csvWriter = null;
+        }
     }
 
     static UdpClient TryBindPort(int port, string label)
@@ -102,7 +153,8 @@ public class UDPSaberReceiver : MonoBehaviour, IImuSaberReceiver
         }
     }
 
-    private void ReceiveLoop(UdpClient client, object lockObj, Action<IMUPacket> setData, ref int failureCounter)
+    private void ReceiveLoop(UdpClient client, object lockObj, Action<IMUPacket> setData,
+                             ref int failureCounter, string handLabel)
     {
         IPEndPoint remote = new IPEndPoint(IPAddress.Any, 0);
         while (running && client != null)
@@ -112,6 +164,9 @@ public class UDPSaberReceiver : MonoBehaviour, IImuSaberReceiver
                 byte[] bytes = client.Receive(ref remote);
                 string raw = System.Text.Encoding.UTF8.GetString(bytes);
                 var p = ParsePacket(raw);
+
+                EnqueueCsvRow(handLabel, raw, p);
+
                 if (p.valid)
                 {
                     failureCounter = 0;
@@ -132,6 +187,26 @@ public class UDPSaberReceiver : MonoBehaviour, IImuSaberReceiver
             catch (ObjectDisposedException) { break; }
             catch (Exception ex) { Debug.LogWarning($"[UDPSaberReceiver] Receive error: {ex.Message}"); }
         }
+    }
+
+    void EnqueueCsvRow(string hand, string raw, IMUPacket p)
+    {
+        if (_csvWriter == null) return;
+
+        // Called from background thread — only enqueue; main thread writes.
+        string safeRaw = raw.Replace(",", ";").Replace("\n", "").Replace("\r", "");
+        string line = string.Format(CultureInfo.InvariantCulture,
+            "{0:F3},{1},{2},{3},{4:F4},{5:F4},{6:F4},{7:F4},{8:F4},{9:F4},{10},{11:F4},{12:F4},{13}",
+            Environment.TickCount / 1000.0,
+            hand, safeRaw,
+            p.valid ? "1" : "0",
+            p.acceleration.x, p.acceleration.y, p.acceleration.z,
+            p.angularVelocity.x, p.angularVelocity.y, p.angularVelocity.z,
+            p.hasControllerExtras ? "1" : "0",
+            p.joystickX, p.joystickY,
+            p.selectPressed ? "1" : "0");
+
+        _csvQueue.Enqueue(line);
     }
 
     /// <summary>
@@ -187,5 +262,18 @@ public class UDPSaberReceiver : MonoBehaviour, IImuSaberReceiver
         rightClient?.Close();
         leftThread?.Join(500);
         rightThread?.Join(500);
+
+        if (_csvWriter != null)
+        {
+            // Flush any remaining queued rows before closing.
+            while (_csvQueue.TryDequeue(out string line))
+            {
+                try { _csvWriter.WriteLine(line); } catch { }
+            }
+            try { _csvWriter.Close(); } catch { }
+            _csvWriter = null;
+            if (_resolvedCsvPath != null)
+                Debug.Log($"[UDPSaberReceiver] Debug CSV closed: {_resolvedCsvPath}");
+        }
     }
 }

@@ -79,6 +79,13 @@ public class SaberMotionController : MonoBehaviour
 
         RefreshProviders();
         InitFallback();
+
+        // --- Diagnostic log — helps confirm correct hand wiring ---
+        string providerList = _providers != null && _providers.Length > 0
+            ? string.Join(", ", System.Array.ConvertAll(_providers, p => p.GetType().Name))
+            : "none (will use built-in fallback)";
+        string udpStatus = receiver != null ? $"UDPSaberReceiver found (L={receiver.leftSaberPort} R={receiver.rightSaberPort})" : "NO UDPSaberReceiver";
+        Debug.Log($"[SaberMotionController] Hand={hand} on '{gameObject.name}'. Providers: [{providerList}]. {udpStatus}");
     }
 
     void RefreshProviders()
@@ -92,7 +99,10 @@ public class SaberMotionController : MonoBehaviour
                 list.Add(p);
         }
         _providers = list.ToArray();
+        _providerCount = _providers.Length;
     }
+
+    int _providerCount;
 
     void InitFallback()
     {
@@ -123,8 +133,22 @@ public class SaberMotionController : MonoBehaviour
 
     void Update()
     {
-        if (_providers == null || _providers.Length == 0)
+        // Re-scan providers when the count on this object changes (SaberGameplayBootstrap
+        // may add ImuSaberInputProvider / DesktopSaberInputProvider after our Start ran).
+        int currentCount = GetComponents<ISaberInputProvider>().Length;
+        if (_providers == null || _providers.Length == 0 || currentCount != _providerCount)
             RefreshProviders();
+
+        // Re-check for a UDP receiver if it was missing at Start (created lazily by SaberGameplayBootstrap).
+        if (receiver == null)
+        {
+            receiver = Object.FindAnyObjectByType<UDPSaberReceiver>();
+            if (receiver != null)
+            {
+                RefreshProviders(); // re-scan so ImuSaberInputProvider sees the new receiver
+                Debug.Log($"[SaberMotionController] Hand={hand} '{gameObject.name}': found UDPSaberReceiver late (created by SaberGameplayBootstrap).");
+            }
+        }
 
         _activeProvider = PickProvider();
 

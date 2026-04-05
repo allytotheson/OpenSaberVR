@@ -125,6 +125,15 @@ public static class SaberGameplayBootstrap
         if (hand == null)
             return;
 
+        // ImuCalibrationController must only live in the Calibration scene.
+        // Remove it from saber hand roots to prevent broken Skip flows and duplicate UIs.
+        foreach (var cal in hand.GetComponents<ImuCalibrationController>())
+        {
+            Debug.LogWarning($"[SaberGameplayBootstrap] Removing ImuCalibrationController from '{hand.name}' " +
+                             $"— it belongs in the Calibration scene, not on a saber object.");
+            Object.Destroy(cal);
+        }
+
         var mc = hand.GetComponent<SaberMotionController>();
         if (mc == null)
         {

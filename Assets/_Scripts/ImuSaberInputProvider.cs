@@ -77,6 +77,18 @@ public class ImuSaberInputProvider : MonoBehaviour, ISaberInputProvider
         if (playerRoot == null && GameplayCameraEnsurer.TryGetPreferredCamera(out Camera cam))
             playerRoot = cam.transform;
 
+        // --- Diagnostic log ---
+        var imu = ResolveImuSource();
+        if (imu == null)
+            Debug.LogWarning($"[ImuSaberInputProvider] Hand={hand} on '{gameObject.name}': no IMU source found. " +
+                             $"Check UDPSaberReceiver exists and ports 5000/5001 are open in Windows Firewall.");
+        else
+        {
+            var pkt = hand == SaberMotionController.SaberHand.Left ? imu.LeftSaberData : imu.RightSaberData;
+            Debug.Log($"[ImuSaberInputProvider] Hand={hand} on '{gameObject.name}': IMU source={imu.GetType().Name}, " +
+                      $"current packet valid={pkt.valid}, hasExtras={pkt.hasControllerExtras}.");
+        }
+
         Vector3 startPos = basePosition;
         if (hand == SaberMotionController.SaberHand.Left)
             startPos.x = -Mathf.Abs(startPos.x);

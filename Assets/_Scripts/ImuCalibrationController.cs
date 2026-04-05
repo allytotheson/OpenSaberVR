@@ -47,6 +47,19 @@ public class ImuCalibrationController : MonoBehaviour
 
     void Awake()
     {
+        // Safety: this component must only live in the Calibration scene (created by
+        // CalibrationSceneBootstrap). If it ends up on a saber hand root (OpenSaber scene)
+        // the Skip coroutine will silently fail because the host object gets deactivated.
+        if (gameObject.scene.IsValid() && gameObject.scene.name != "Calibration")
+        {
+            Debug.LogError($"[ImuCalibrationController] Found on '{gameObject.name}' in scene " +
+                           $"'{gameObject.scene.name}' — this component must only exist in the " +
+                           $"Calibration scene. Destroying the misplaced component now. " +
+                           $"Remove it from the saber prefab/object in the Inspector.");
+            Destroy(this);
+            return;
+        }
+
         BuildUI();
     }
 

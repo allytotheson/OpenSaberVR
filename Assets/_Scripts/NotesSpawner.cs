@@ -179,6 +179,25 @@ public class NotesSpawner : MonoBehaviour
 
     void Start()
     {
+        if (GameplayCalibrationGate.BlocksNoteTimeline)
+        {
+            // OpenSaber should not be loaded while calibration is active with the current
+            // scene flow, but if it is (e.g. editor test), defer startup until the gate clears.
+            StartCoroutine(WaitForCalibrationThenStart());
+            return;
+        }
+        StartInternal();
+    }
+
+    IEnumerator WaitForCalibrationThenStart()
+    {
+        while (GameplayCalibrationGate.BlocksNoteTimeline)
+            yield return null;
+        StartInternal();
+    }
+
+    void StartInternal()
+    {
         GameObject songGo = GameObject.FindGameObjectWithTag("SongSettings");
         if (songGo == null)
         {

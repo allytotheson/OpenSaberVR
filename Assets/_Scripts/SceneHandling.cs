@@ -38,6 +38,17 @@ public class SceneHandling : MonoBehaviour
             return;
         sh.EnsureSaberRefs();
         sh.SaberSceneLoaded();
+        // SaberMotionController components may not be attached yet at this callback
+        // (SaberGameplayBootstrap adds them from NotesSpawner.Start on the same frame).
+        // Do a second pass one frame later to catch anything that was just added.
+        sh.StartCoroutine(sh.RefreshSabersNextFrame());
+    }
+
+    System.Collections.IEnumerator RefreshSabersNextFrame()
+    {
+        yield return null;  // wait one frame
+        EnsureSaberRefs();
+        ApplySaberRootsVisible();
     }
 
     private static void SuppressVrtkSdkLoadWhenNoHeadset()

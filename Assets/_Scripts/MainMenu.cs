@@ -469,18 +469,30 @@ public class MainMenu : MonoBehaviour
 
         EnsureCurrentSongReference();
 
-        // IMU receivers live in OpenSaber — show calibration after load if any receiver exists (non-VR).
-        GameplayCalibrationGate.BlocksNoteTimeline = true;
-        yield return SceneHandling.LoadScene("OpenSaber", LoadSceneMode.Additive);
+        // Always show calibration for non-VR desktop play.
+        // Do NOT check for existing UDPSaberReceiver here — it is created lazily by
+        // SaberGameplayBootstrap inside NotesSpawner.Start (after OpenSaber loads), so it
+        // won't exist yet at this point. Calibration has a Skip button and shows
+        // "No IMU receiver detected" if nothing is connected, so it is safe to always show it.
+        bool useImuCalibration = !GameplayCameraEnsurer.IsXrDeviceActive();
 
-        bool anyImuComponent = Object.FindAnyObjectByType<SerialSaberReceiver>() != null
-                               || Object.FindAnyObjectByType<UDPSaberReceiver>() != null;
-        if (anyImuComponent && !GameplayCameraEnsurer.IsXrDeviceActive())
+        if (useImuCalibration)
+        {
+            // New flow: Calibration FIRST, then OpenSaber.
+            // OpenSaber (and therefore NotesSpawner/audio) is not loaded until calibration is done.
+            // ImuCalibrationController.LoadViaSceneHandling loads OpenSaber and unloads Calibration
+            // when the user completes or skips calibration.
+            GameplayCalibrationGate.BlocksNoteTimeline = true;
             CalibrationSceneBootstrap.EnsureCalibrationScene();
+            yield return SceneHandling.UnloadScene("Menu");
+        }
         else
+        {
+            // VR only: skip calibration and go straight to gameplay.
             GameplayCalibrationGate.BlocksNoteTimeline = false;
-
-        yield return SceneHandling.UnloadScene("Menu");
+            yield return SceneHandling.LoadScene("OpenSaber", LoadSceneMode.Additive);
+            yield return SceneHandling.UnloadScene("Menu");
+        }
     }
 
     public void AreYouSure()

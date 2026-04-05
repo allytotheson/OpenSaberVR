@@ -1051,7 +1051,15 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 7196774935191616724, guid: d65ef765065d48c4495cd60cd18dcdd4,
         type: 3}
       insertIndex: -1
+      addedObject: {fileID: 397960059}
+    - targetCorrespondingSourceObject: {fileID: 7196774935191616724, guid: d65ef765065d48c4495cd60cd18dcdd4,
+        type: 3}
+      insertIndex: -1
       addedObject: {fileID: 397960058}
+    - targetCorrespondingSourceObject: {fileID: 7196774935191616724, guid: d65ef765065d48c4495cd60cd18dcdd4,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 397960057}
   m_SourcePrefab: {fileID: 100100000, guid: d65ef765065d48c4495cd60cd18dcdd4, type: 3}
 --- !u!1 &397960056 stripped
 GameObject:
@@ -1059,6 +1067,36 @@ GameObject:
     type: 3}
   m_PrefabInstance: {fileID: 397960055}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &397960057
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 397960056}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a1571189fd1cc24693a3a6eb1cd5156, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SaberMotionController
+  hand: 1
+  receiver: {fileID: 0}
+  serialReceiver: {fileID: 0}
+  saberTransform: {fileID: 0}
+  basePosition: {x: 0.25, y: 1.5, z: 0}
+  playerRoot: {fileID: 0}
+  baseForward: {x: 0, y: 0, z: 1}
+  gyroScale: 1
+  accelPositionScale: 0.01
+  applyJoystickNudgeFromUdp: 1
+  joystickNudgeMeters: 0.4
+  clampPosition: 1
+  maxPositionRadius: 1.5
+  bladeLength: 0.5
+  forceProviderIndex: 0
+  complementaryAlpha: 0.98
+  estimateGyroBias: 1
+  gyroBiasLearnRate: 0.001
 --- !u!114 &397960058
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1066,32 +1104,39 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 397960056}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0bc2f99d15c09044e9d71c4d39d32624, type: 3}
+  m_Script: {fileID: 11500000, guid: 6a99096983d41234ea0d016239d2b9d8, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SerialSaberReceiver
-  leftSaberComPort: 
-  rightSaberComPort: COM7
-  baudRate: 115200
-  leftSaberData:
-    acceleration: {x: 0, y: 0, z: 0}
-    angularVelocity: {x: 0, y: 0, z: 0}
-    timestamp: 0
-    valid: 0
-    joystickX: 0
-    joystickY: 0
-    selectPressed: 0
-    hasControllerExtras: 0
-  rightSaberData:
-    acceleration: {x: 0, y: 0, z: 0}
-    angularVelocity: {x: 0, y: 0, z: 0}
-    timestamp: 0
-    valid: 0
-    joystickX: 0
-    joystickY: 0
-    selectPressed: 0
-    hasControllerExtras: 0
+  m_EditorClassIdentifier: Assembly-CSharp::ImuCalibrationController
+  holdDuration: 3
+  autoAdvanceDelay: 1
+--- !u!114 &397960059
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 397960056}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 98224f79db13aba4fac5a37d46d5e479, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ImuSaberInputProvider
+  imuSourceOverride: {fileID: 0}
+  basePosition: {x: 0.25, y: 1.5, z: 0}
+  playerRoot: {fileID: 0}
+  baseForward: {x: 0, y: 0, z: 1}
+  gyroScale: 1
+  accelPositionScale: 0.01
+  complementaryAlpha: 0.98
+  estimateGyroBias: 1
+  gyroBiasLearnRate: 0.001
+  applyJoystickNudge: 0
+  joystickNudgeMeters: 0.4
+  clampPosition: 1
+  maxPositionRadius: 1.5
+  bladeLength: 0.5
 --- !u!1 &589852658
 GameObject:
   m_ObjectHideFlags: 0
@@ -2259,6 +2304,14 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: e12f3a016f4da3e43a21ce0acd638ff7,
         type: 3}
       insertIndex: -1
+      addedObject: {fileID: 1533990786}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: e12f3a016f4da3e43a21ce0acd638ff7,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1533990785}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: e12f3a016f4da3e43a21ce0acd638ff7,
+        type: 3}
+      insertIndex: -1
       addedObject: {fileID: 1533990784}
   m_SourcePrefab: {fileID: 100100000, guid: e12f3a016f4da3e43a21ce0acd638ff7, type: 3}
 --- !u!1 &1533990783 stripped
@@ -2274,32 +2327,69 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1533990783}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0bc2f99d15c09044e9d71c4d39d32624, type: 3}
+  m_Script: {fileID: 11500000, guid: 6a99096983d41234ea0d016239d2b9d8, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SerialSaberReceiver
-  leftSaberComPort: COM6
-  rightSaberComPort: 
-  baudRate: 115200
-  leftSaberData:
-    acceleration: {x: 0, y: 0, z: 0}
-    angularVelocity: {x: 0, y: 0, z: 0}
-    timestamp: 0
-    valid: 0
-    joystickX: 0
-    joystickY: 0
-    selectPressed: 0
-    hasControllerExtras: 0
-  rightSaberData:
-    acceleration: {x: 0, y: 0, z: 0}
-    angularVelocity: {x: 0, y: 0, z: 0}
-    timestamp: 0
-    valid: 0
-    joystickX: 0
-    joystickY: 0
-    selectPressed: 0
-    hasControllerExtras: 0
+  m_EditorClassIdentifier: Assembly-CSharp::ImuCalibrationController
+  holdDuration: 3
+  autoAdvanceDelay: 1
+--- !u!114 &1533990785
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1533990783}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 98224f79db13aba4fac5a37d46d5e479, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ImuSaberInputProvider
+  imuSourceOverride: {fileID: 0}
+  basePosition: {x: 0.25, y: 1.5, z: 0}
+  playerRoot: {fileID: 0}
+  baseForward: {x: 0, y: 0, z: 1}
+  gyroScale: 1
+  accelPositionScale: 0.01
+  complementaryAlpha: 0.98
+  estimateGyroBias: 1
+  gyroBiasLearnRate: 0.001
+  applyJoystickNudge: 0
+  joystickNudgeMeters: 0.4
+  clampPosition: 1
+  maxPositionRadius: 1.5
+  bladeLength: 0.5
+--- !u!114 &1533990786
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1533990783}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a1571189fd1cc24693a3a6eb1cd5156, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SaberMotionController
+  hand: 0
+  receiver: {fileID: 0}
+  serialReceiver: {fileID: 0}
+  saberTransform: {fileID: 0}
+  basePosition: {x: 0.25, y: 1.5, z: 0}
+  playerRoot: {fileID: 0}
+  baseForward: {x: 0, y: 0, z: 1}
+  gyroScale: 1
+  accelPositionScale: 0.01
+  applyJoystickNudgeFromUdp: 1
+  joystickNudgeMeters: 0.4
+  clampPosition: 1
+  maxPositionRadius: 1.5
+  bladeLength: 0.5
+  forceProviderIndex: 0
+  complementaryAlpha: 0.98
+  estimateGyroBias: 1
+  gyroBiasLearnRate: 0.001
 --- !u!1 &1624104738
 GameObject:
   m_ObjectHideFlags: 0
