@@ -1,4 +1,16 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
+
+/// <summary>Non-VR menu flow: title looks at the floor; after Start the camera tilts up to the stage / UI.</summary>
+public enum DesktopMenuCameraMode
+{
+    /// <summary>Gameplay, calibration, or any non-menu view — uses <see cref="DesktopPlayerViewRig.lookDownPitchDegrees"/>.</summary>
+    Gameplay,
+    /// <summary>Title screen: strong downward pitch.</summary>
+    TitleFloor,
+    /// <summary>Song list, difficulty, no-songs, quit confirm — same base pitch as gameplay menu browse.</summary>
+    SongBrowse,
+}
 
 /// <summary>
 /// Non-VR "standing on the platform" view: eye height over <see cref="PlayersPlatform"/>,
@@ -52,16 +64,71 @@ public class DesktopPlayerViewRig : MonoBehaviour
     [Tooltip("Keep using the same Camera reference until ApplyIfNeeded runs or it is destroyed — avoids flicker when several cameras are eligible.")]
     public bool pinPreferredCamera = true;
 
+    [Header("Non-VR menu camera")]
+    [Tooltip("Pitch (degrees) when looking at the floor on the title screen. 90 ≈ straight down.")]
+    public float titleScreenPitchDegrees = 82f;
+
+    [Tooltip("Seconds to tilt between title floor pitch and song-browse / gameplay pitch.")]
+    public float menuPitchTransitionSeconds = 1.1f;
+
     Vector3 _cachedEye;
     Quaternion _cachedRot;
     bool _hasCachedPose;
     Camera _pinnedCam;
 
+    float _currentBasePitch;
+    bool _pitchLerpActive;
+    float _pitchLerpFrom;
+    float _pitchLerpTo;
+    float _pitchLerpT;
+
+    public static DesktopPlayerViewRig FindInstance() =>
+        UnityEngine.Object.FindAnyObjectByType<DesktopPlayerViewRig>(FindObjectsInactive.Include);
+
     void Awake()
     {
+        _currentBasePitch = lookDownPitchDegrees;
+        SceneManager.sceneLoaded += OnSceneLoaded;
         ApplyIfNeeded();
         if (GetComponent<DeveloperGameplayMode>() != null)
             GameplayDebugHud.EnsureCreated(transform);
+    }
+
+    void OnDestroy()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name == "OpenSaber" || scene.name == "Calibration")
+            SetMenuCameraMode(DesktopMenuCameraMode.Gameplay, animated: false);
+    }
+
+    /// <summary>Menu / gameplay camera mode for flat desktop only. XR is ignored.</summary>
+    public void SetMenuCameraMode(DesktopMenuCameraMode mode, bool animated)
+    {
+#if UNITY_EDITOR || UNITY_STANDALONE
+        if (!IsNonXRDesktop())
+            return;
+
+        float target = mode == DesktopMenuCameraMode.TitleFloor
+            ? titleScreenPitchDegrees
+            : lookDownPitchDegrees;
+
+        if (!animated || !Application.isPlaying)
+        {
+            _currentBasePitch = target;
+            _pitchLerpActive = false;
+            ApplyIfNeeded();
+            return;
+        }
+
+        _pitchLerpFrom = _currentBasePitch;
+        _pitchLerpTo = target;
+        _pitchLerpT = 0f;
+        _pitchLerpActive = true;
+#endif
     }
 
     /// <summary>
@@ -81,7 +148,7 @@ public class DesktopPlayerViewRig : MonoBehaviour
         var platform = PlayerPlatform != null ? PlayerPlatform : FindPlatform();
         if (platform == null)
         {
-            cam.transform.SetPositionAndRotation(new Vector3(0f, 1.65f, 0f), Quaternion.Euler(lookDownPitchDegrees, yawDegrees, 0f));
+            cam.transform.SetPositionAndRotation(new Vector3(0f, 1.65f, 0f), Quaternion.Euler(_currentBasePitch, yawDegrees, 0f));
             CachePose(cam);
             return;
         }
@@ -97,7 +164,7 @@ public class DesktopPlayerViewRig : MonoBehaviour
         eye.x = platform.position.x;
         eye.z = platform.position.z;
 
-        cam.transform.SetPositionAndRotation(eye, Quaternion.Euler(lookDownPitchDegrees, yawDegrees, 0f));
+        cam.transform.SetPositionAndRotation(eye, Quaternion.Euler(_currentBasePitch, yawDegrees, 0f));
         CachePose(cam);
 #endif
     }
@@ -126,8 +193,17 @@ public class DesktopPlayerViewRig : MonoBehaviour
                 _pinnedCam = cam;
         }
 
+        if (_pitchLerpActive)
+        {
+            _pitchLerpT += Time.deltaTime / Mathf.Max(0.01f, menuPitchTransitionSeconds);
+            float u = Mathf.Clamp01(_pitchLerpT);
+            _currentBasePitch = Mathf.Lerp(_pitchLerpFrom, _pitchLerpTo, Mathf.SmoothStep(0f, 1f, u));
+            if (u >= 1f)
+                _pitchLerpActive = false;
+        }
+
         Vector3 eye = _cachedEye;
-        Quaternion rot = _cachedRot;
+        Quaternion rot = Quaternion.Euler(_currentBasePitch, yawDegrees, 0f);
 
         eye += Vector3.up * eyeVerticalBoost;
 

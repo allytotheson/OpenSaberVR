@@ -356,11 +356,12 @@ public class NotesSpawner : MonoBehaviour
 
     private IEnumerator LoadAudio()
     {
-        var downloadHandler = new DownloadHandlerAudioClip(Songsettings.CurrentSong.AudioFilePath, AudioType.OGGVORBIS);
+        string audioUri = LocalAudioRequestUri.FromFilesystemPath(Songsettings.CurrentSong.AudioFilePath);
+        var downloadHandler = new DownloadHandlerAudioClip(audioUri, AudioType.OGGVORBIS);
         downloadHandler.compressed = false;
         downloadHandler.streamAudio = true;
         var uwr = new UnityWebRequest(
-                Songsettings.CurrentSong.AudioFilePath,
+                audioUri,
                 UnityWebRequest.kHttpVerbGET,
                 downloadHandler,
                 null);
@@ -368,6 +369,12 @@ public class NotesSpawner : MonoBehaviour
         var request = uwr.SendWebRequest();
         while (!request.isDone)
             yield return null;
+
+        if (uwr.result != UnityWebRequest.Result.Success)
+        {
+            Debug.LogError($"[NotesSpawner] Failed to load gameplay audio: {uwr.error} (URI: {audioUri})");
+            yield break;
+        }
 
         audioSource.clip = DownloadHandlerAudioClip.GetContent(uwr);
         audioLoaded = true;

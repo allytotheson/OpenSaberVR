@@ -88,6 +88,37 @@ public class MainMenu : MonoBehaviour
             SetLevelChooserScreenLayout();
     }
 
+    void Start()
+    {
+        SyncDesktopMenuCameraToCurrentPanel();
+    }
+
+    void SyncDesktopMenuCameraToCurrentPanel()
+    {
+        var rig = DesktopPlayerViewRig.FindInstance();
+        if (rig == null)
+            return;
+        if (Title != null && Title.activeSelf)
+            rig.SetMenuCameraMode(DesktopMenuCameraMode.TitleFloor, animated: false);
+        else if (UsesSongBrowseMenuCamera())
+            rig.SetMenuCameraMode(DesktopMenuCameraMode.SongBrowse, animated: false);
+    }
+
+    bool UsesSongBrowseMenuCamera()
+    {
+        return (SongChooser != null && SongChooser.activeSelf)
+               || (LevelChooser != null && LevelChooser.activeSelf)
+               || (NoSongsFound != null && NoSongsFound.activeSelf)
+               || (PanelAreYouSure != null && PanelAreYouSure.activeSelf);
+    }
+
+    void ApplyDesktopMenuCamera(DesktopMenuCameraMode mode, bool animated)
+    {
+        var rig = DesktopPlayerViewRig.FindInstance();
+        if (rig != null)
+            rig.SetMenuCameraMode(mode, animated);
+    }
+
     /// <summary>Fills missing serialized references from tags or direct children of this canvas (same names as in Main_Menu prefab).</summary>
     void ResolveMainMenuUiReferences()
     {
@@ -310,6 +341,8 @@ public class MainMenu : MonoBehaviour
 
     public void ShowSongs()
     {
+        ApplyDesktopMenuCamera(DesktopMenuCameraMode.SongBrowse, animated: true);
+
         if (SongInfos == null || SongInfos.AllSongs == null || SongInfos.AllSongs.Count == 0)
         {
             if (Title != null) Title.SetActive(false);
@@ -334,10 +367,7 @@ public class MainMenu : MonoBehaviour
             return;
         }
 
-        if (SongInfos.SongName != null) SongInfos.SongName.text = song.Name;
-        if (SongInfos.Artist != null) SongInfos.Artist.text = song.AuthorName;
-        if (SongInfos.BPM != null) SongInfos.BPM.text = song.BPM;
-        if (SongInfos.Levels != null) SongInfos.Levels.text = song.Difficulties.Count.ToString();
+        SongInfos.BindSongChooserRows(song);
 
         byte[] byteArray = File.ReadAllBytes(song.CoverImagePath);
         Texture2D sampleTexture = new Texture2D(2, 2);
@@ -359,11 +389,12 @@ public class MainMenu : MonoBehaviour
 
         yield return null;
 
-        var downloadHandler = new DownloadHandlerAudioClip(Songsettings.CurrentSong.AudioFilePath, AudioType.OGGVORBIS);
+        string audioUri = LocalAudioRequestUri.FromFilesystemPath(Songsettings.CurrentSong.AudioFilePath);
+        var downloadHandler = new DownloadHandlerAudioClip(audioUri, AudioType.OGGVORBIS);
         downloadHandler.compressed = false;
         downloadHandler.streamAudio = true;
         var uwr = new UnityWebRequest(
-                Songsettings.CurrentSong.AudioFilePath,
+                audioUri,
                 UnityWebRequest.kHttpVerbGET,
                 downloadHandler,
                 null);
@@ -371,6 +402,12 @@ public class MainMenu : MonoBehaviour
         var request = uwr.SendWebRequest();
         while(!request.isDone)
             yield return null;
+
+        if (uwr.result != UnityWebRequest.Result.Success)
+        {
+            Debug.LogError($"[MainMenu] Failed to load preview audio: {uwr.error} (URI: {audioUri})");
+            yield break;
+        }
 
         PreviewAudioClip = DownloadHandlerAudioClip.GetContent(uwr);
     }
@@ -411,10 +448,7 @@ public class MainMenu : MonoBehaviour
         if (song == null)
             return;
 
-        if (SongInfos.SongName != null) SongInfos.SongName.text = song.Name;
-        if (SongInfos.Artist != null) SongInfos.Artist.text = song.AuthorName;
-        if (SongInfos.BPM != null) SongInfos.BPM.text = song.BPM;
-        if (SongInfos.Levels != null) SongInfos.Levels.text = song.Difficulties.Count.ToString();
+        SongInfos.BindSongChooserRows(song);
 
         byte[] byteArray = File.ReadAllBytes(song.CoverImagePath);
         Texture2D sampleTexture = new Texture2D(2, 2);
@@ -433,10 +467,7 @@ public class MainMenu : MonoBehaviour
         if (song == null)
             return;
 
-        if (SongInfos.SongName != null) SongInfos.SongName.text = song.Name;
-        if (SongInfos.Artist != null) SongInfos.Artist.text = song.AuthorName;
-        if (SongInfos.BPM != null) SongInfos.BPM.text = song.BPM;
-        if (SongInfos.Levels != null) SongInfos.Levels.text = song.Difficulties.Count.ToString();
+        SongInfos.BindSongChooserRows(song);
 
         byte[] byteArray = File.ReadAllBytes(song.CoverImagePath);
         Texture2D sampleTexture = new Texture2D(2, 2);
@@ -567,6 +598,7 @@ public class MainMenu : MonoBehaviour
 
     public void AreYouSure()
     {
+        ApplyDesktopMenuCamera(DesktopMenuCameraMode.SongBrowse, animated: true);
         SetHomeScreenButtonsVisible(false);
         SetMenuExitOverlayVisible(false);
         NoSongsFound.gameObject.SetActive(false);
@@ -581,6 +613,7 @@ public class MainMenu : MonoBehaviour
         PanelAreYouSure.gameObject.SetActive(false);
         Title.gameObject.SetActive(true);
         SetTitleScreenLayout();
+        ApplyDesktopMenuCamera(DesktopMenuCameraMode.TitleFloor, animated: true);
     }
 
     public void Yes()
@@ -633,6 +666,7 @@ public class MainMenu : MonoBehaviour
         if (NoSongsFound != null) NoSongsFound.SetActive(false);
         if (Title != null) Title.SetActive(true);
         SetTitleScreenLayout();
+        ApplyDesktopMenuCamera(DesktopMenuCameraMode.TitleFloor, animated: true);
     }
 
     void BackToSongListFromDifficulty()
@@ -648,6 +682,7 @@ public class MainMenu : MonoBehaviour
         if (SongChooser != null) SongChooser.SetActive(true);
         if (Title != null) Title.SetActive(false);
         SetSongChooserScreenLayout();
+        ApplyDesktopMenuCamera(DesktopMenuCameraMode.SongBrowse, animated: false);
 
         if (SongPreview != null)
             SongPreview.Stop();
@@ -673,10 +708,7 @@ public class MainMenu : MonoBehaviour
         Songsettings.CurrentSong = SongInfos.AllSongs[idx];
         Song song = SongInfos.AllSongs[idx];
 
-        SongInfos.SongName.text = song.Name;
-        SongInfos.Artist.text = song.AuthorName;
-        SongInfos.BPM.text = song.BPM;
-        SongInfos.Levels.text = song.Difficulties.Count.ToString();
+        SongInfos.BindSongChooserRows(song);
 
         if (SongInfos.Cover == null || string.IsNullOrEmpty(song.CoverImagePath) || !File.Exists(song.CoverImagePath))
             return;

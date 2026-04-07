@@ -35,7 +35,6 @@ sysinfo.txt
 *.apk
 *.unitypackage
 Logs/
-Playlists/
 Assets/_TerrainAutoUpgrade/
 
 # Real Stars Skybox cubemaps are ~192MB each (GitHub hard limit 100MB); keep local only

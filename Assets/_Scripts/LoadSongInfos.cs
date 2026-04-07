@@ -1,4 +1,5 @@
 using Boomlagoon.JSON;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -26,6 +27,9 @@ public class LoadSongInfos : MonoBehaviour
     public Text BPM;
     public Text Levels;
     private SongSettings Songsettings;
+
+    /// <summary>World-space two-column layout can read value-before-label; switch to one rich-text line once.</summary>
+    bool _songChooserStatsLayoutApplied;
 
     private void Awake()
     {
@@ -78,6 +82,17 @@ public class LoadSongInfos : MonoBehaviour
         }
     }
 
+    /// <summary>Beat Saber maps use <c>info.dat</c> or <c>Info.dat</c>; match case-insensitively for all platforms.</summary>
+    static string FindInfoDatPath(string songDir)
+    {
+        foreach (var f in Directory.GetFiles(songDir, "*.dat"))
+        {
+            if (string.Equals(Path.GetFileName(f), "info.dat", StringComparison.OrdinalIgnoreCase))
+                return f;
+        }
+        return null;
+    }
+
     static SongSettings FindSongSettingsInstance()
     {
         var s = UnityEngine.Object.FindAnyObjectByType<SongSettings>(FindObjectsInactive.Include);
@@ -96,9 +111,10 @@ public class LoadSongInfos : MonoBehaviour
         {
             foreach (var dir in Directory.GetDirectories(path))
             {
-                if (Directory.Exists(dir) && Directory.GetFiles(dir, "info.dat").Length > 0)
+                string infoPath = FindInfoDatPath(dir);
+                if (Directory.Exists(dir) && infoPath != null)
                 {
-                    JSONObject infoFile = JSONObject.Parse(File.ReadAllText(Path.Combine(dir, "info.dat")));
+                    JSONObject infoFile = JSONObject.Parse(File.ReadAllText(infoPath));
 
                     var song = new Song();
                     song.Path = dir;
@@ -169,6 +185,82 @@ public class LoadSongInfos : MonoBehaviour
     {
         return Songsettings != null ? Songsettings.CurrentSong : null;
     }
+
+    /// <summary>
+    /// Fills song / artist / BPM / levels with <c>Label: value</c> order using rich text
+    /// (same lighter tone as the old description column). Hides static description labels
+    /// and widens value fields so lines do not overlap on the world-space canvas.
+    /// </summary>
+    public void BindSongChooserRows(Song song)
+    {
+        if (song == null)
+            return;
+        ApplySongChooserSingleColumnLayoutOnce();
+        EnsureSongStatTextsCenteredInRect();
+
+        if (SongName != null)
+            SongName.text = RichSongRow("Song:", song.Name ?? "");
+        if (Artist != null)
+            Artist.text = RichSongRow("Artist:", song.AuthorName ?? "");
+        if (BPM != null)
+            BPM.text = RichSongRow("BPM:", song.BPM ?? "");
+        if (Levels != null)
+            Levels.text = RichSongRow("Levels:", song.Difficulties != null ? song.Difficulties.Count.ToString() : "0");
+    }
+
+    static string RichSongRow(string label, string value)
+    {
+        return $"<color=#F5FAFF>{label}</color> {value}";
+    }
+
+    void ApplySongChooserSingleColumnLayoutOnce()
+    {
+        if (_songChooserStatsLayoutApplied)
+            return;
+
+        var songChooser = transform.Find("SongChooser");
+        if (songChooser == null)
+            return;
+
+        foreach (var name in new[]
+                 {
+                     "SongNameDescription",
+                     "ArtistDescription",
+                     "BPMDescription",
+                     "DifficultyDescription",
+                 })
+        {
+            var row = songChooser.Find(name);
+            if (row != null)
+                row.gameObject.SetActive(false);
+        }
+
+        WidenSongStatRow(songChooser.Find("SongName")?.GetComponent<Text>());
+        WidenSongStatRow(songChooser.Find("Artist")?.GetComponent<Text>());
+        WidenSongStatRow(songChooser.Find("BPM")?.GetComponent<Text>());
+        WidenSongStatRow(songChooser.Find("Difficulty")?.GetComponent<Text>());
+
+        _songChooserStatsLayoutApplied = true;
+    }
+
+    static void WidenSongStatRow(Text txt)
+    {
+        if (txt == null)
+            return;
+        var rt = txt.rectTransform;
+        rt.sizeDelta = new Vector2(880f, rt.sizeDelta.y);
+        rt.anchoredPosition = new Vector2(-30f, rt.anchoredPosition.y);
+    }
+
+    void EnsureSongStatTextsCenteredInRect()
+    {
+        // Set every bind so alignment stays correct if UI references are rebound.
+        foreach (var t in new[] { SongName, Artist, BPM, Levels })
+        {
+            if (t != null)
+                t.alignment = TextAnchor.MiddleCenter;
+        }
+    }
 }
 
 public class Song
@@ -181,4 +273,19 @@ public class Song
     public string CoverImagePath { get; set; }
     public List<string> Difficulties { get; set; }
     public string SelectedDifficulty { get; set; }
+}
+
+/// <summary><see cref="UnityEngine.Networking.UnityWebRequest"/> needs a URI; raw disk paths must be <c>file://</c> URLs.</summary>
+internal static class LocalAudioRequestUri
+{
+    public static string FromFilesystemPath(string path)
+    {
+        if (string.IsNullOrEmpty(path))
+            return path;
+        if (path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
+            return path;
+        return new Uri(Path.GetFullPath(path)).AbsoluteUri;
+    }
 }
