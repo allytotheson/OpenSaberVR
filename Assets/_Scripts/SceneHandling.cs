@@ -289,6 +289,9 @@ public class SceneHandling : MonoBehaviour
         while (IsSceneLoaded("OpenSaber"))
             yield return UnloadScene("OpenSaber");
 
+        while (IsSceneLoaded("Results"))
+            yield return UnloadScene("Results");
+
         if (!IsSceneLoaded("Menu"))
             yield return LoadScene("Menu", LoadSceneMode.Additive);
 

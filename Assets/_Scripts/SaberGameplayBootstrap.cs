@@ -13,6 +13,7 @@ public static class SaberGameplayBootstrap
     public static void EnsureAfterGameplayLoad()
     {
         EnsureUdpReceiver();
+        EnsureSerialReceiver();
 
         Scene open = SceneManager.GetSceneByName("OpenSaber");
         bool openLoaded = open.IsValid() && open.isLoaded;
@@ -101,10 +102,11 @@ public static class SaberGameplayBootstrap
 
     /// <summary>
     /// Creates a persistent <see cref="UDPSaberReceiver"/> if none exists in any loaded scene.
+    /// Call from calibration (before OpenSaber) so <see cref="ImuSourceResolver"/> sees UDP during IMU calibration.
     /// This allows Pico W controllers to send IMU data over UDP even when only
     /// <see cref="SerialSaberReceiver"/> was placed in the scene.
     /// </summary>
-    static void EnsureUdpReceiver()
+    public static void EnsureUdpReceiver()
     {
         if (Object.FindAnyObjectByType<UDPSaberReceiver>() != null)
             return;
@@ -113,6 +115,25 @@ public static class SaberGameplayBootstrap
         Object.DontDestroyOnLoad(go);
         go.AddComponent<UDPSaberReceiver>();
         Debug.Log("[SaberGameplayBootstrap] Created persistent UDPSaberReceiver (ports 5000/5001) for Pico W IMU input.");
+    }
+
+    /// <summary>
+    /// Creates a persistent <see cref="SerialSaberReceiver"/> (COM6 left, COM7 right) if none
+    /// exists. Serial takes priority over UDP in <see cref="ImuSourceResolver"/> when a port is open.
+    /// </summary>
+    public static void EnsureSerialReceiver()
+    {
+#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        if (Object.FindAnyObjectByType<SerialSaberReceiver>() != null)
+            return;
+
+        var go = new GameObject("[SerialSaberReceiver]");
+        Object.DontDestroyOnLoad(go);
+        var serial = go.AddComponent<SerialSaberReceiver>();
+        serial.leftSaberComPort = "COM6";
+        serial.rightSaberComPort = "COM7";
+        Debug.Log("[SaberGameplayBootstrap] Created persistent SerialSaberReceiver (COM6 left, COM7 right).");
+#endif
     }
 
     /// <summary>

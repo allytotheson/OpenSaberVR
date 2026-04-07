@@ -443,9 +443,39 @@ public class NotesSpawner : MonoBehaviour
 
     IEnumerator LoadMenu()
     {
-        yield return new WaitForSeconds(5);
+        yield return new WaitForSeconds(2);
+        yield return FinishRunAndShowResultsRoutine();
+    }
 
-        yield return SceneHandling.LoadScene("Menu", LoadSceneMode.Additive);
+    /// <summary>
+    /// Stops the song, saves the score to the leaderboard, loads <c>Results</c>, unloads <c>OpenSaber</c>.
+    /// Used at natural end-of-song and from the gameplay SKIP button.
+    /// </summary>
+    public void RequestSkipToResults()
+    {
+        if (menuLoadInProgress || SceneHandling == null)
+            return;
+        menuLoadInProgress = true;
+        enabled = false;
+        if (audioSource != null)
+            audioSource.Stop();
+        StartCoroutine(FinishRunAndShowResultsRoutine());
+    }
+
+    IEnumerator FinishRunAndShowResultsRoutine()
+    {
+        if (audioSource != null)
+            audioSource.Stop();
+
+        var sm = FindAnyObjectByType<ScoreManager>();
+        int finalScore = sm != null ? sm.Score : 0;
+        string songName = Songsettings != null && Songsettings.CurrentSong != null
+            ? Songsettings.CurrentSong.Name : "Unknown";
+        string difficulty = Songsettings != null && Songsettings.CurrentSong != null
+            ? Songsettings.CurrentSong.SelectedDifficulty : "";
+
+        ResultsSession.PublishRunForResultsScene(finalScore, songName, difficulty);
+        yield return SceneHandling.LoadScene("Results", LoadSceneMode.Additive);
         yield return SceneHandling.UnloadScene("OpenSaber");
     }
 

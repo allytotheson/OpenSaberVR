@@ -36,6 +36,7 @@ public class MainMenu : MonoBehaviour
     RectTransform _startRt;
     GameObject _menuExitHudRoot;
     GameObject _menuExitBar;
+    GameObject _titleScoreboardBtnRoot;
 
     AudioClip PreviewAudioClip = null;
     bool PlayNewPreview = false;
@@ -200,6 +201,9 @@ public class MainMenu : MonoBehaviour
         if (HomeScreenButtonStart != null) HomeScreenButtonStart.SetActive(true);
         if (HomeScreenButtonExit != null) HomeScreenButtonExit.SetActive(false);
         SetMenuExitOverlayVisible(false);
+        EnsureTitleScoreboardButton();
+        if (_titleScoreboardBtnRoot != null)
+            _titleScoreboardBtnRoot.SetActive(true);
     }
 
     /// <summary>No songs: no START, no on-screen EXIT (Esc / Backspace still backs out).</summary>
@@ -208,6 +212,8 @@ public class MainMenu : MonoBehaviour
         if (HomeScreenButtonStart != null) HomeScreenButtonStart.SetActive(false);
         if (HomeScreenButtonExit != null) HomeScreenButtonExit.SetActive(false);
         SetMenuExitOverlayVisible(false);
+        if (_titleScoreboardBtnRoot != null)
+            _titleScoreboardBtnRoot.SetActive(false);
     }
 
     /// <summary>Song browser: screen-space EXIT top center (matches OpenSaber HUD).</summary>
@@ -216,6 +222,8 @@ public class MainMenu : MonoBehaviour
         if (HomeScreenButtonStart != null) HomeScreenButtonStart.SetActive(false);
         if (HomeScreenButtonExit != null) HomeScreenButtonExit.SetActive(false);
         SetMenuExitOverlayVisible(true);
+        if (_titleScoreboardBtnRoot != null)
+            _titleScoreboardBtnRoot.SetActive(false);
     }
 
     /// <summary>Difficulty list: same screen-space EXIT as song browser.</summary>
@@ -224,6 +232,68 @@ public class MainMenu : MonoBehaviour
         if (HomeScreenButtonStart != null) HomeScreenButtonStart.SetActive(false);
         if (HomeScreenButtonExit != null) HomeScreenButtonExit.SetActive(false);
         SetMenuExitOverlayVisible(true);
+        if (_titleScoreboardBtnRoot != null)
+            _titleScoreboardBtnRoot.SetActive(false);
+    }
+
+    void EnsureTitleScoreboardButton()
+    {
+        if (_titleScoreboardBtnRoot != null || Title == null)
+            return;
+
+        Font font = MenuExitScreenHud.ResolveMenuFont();
+        _titleScoreboardBtnRoot = new GameObject("Btn_Scoreboard");
+        _titleScoreboardBtnRoot.transform.SetParent(Title.transform, false);
+        var rt = _titleScoreboardBtnRoot.AddComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = new Vector2(0f, -420f);
+        rt.sizeDelta = new Vector2(300f, 56f);
+
+        var img = _titleScoreboardBtnRoot.AddComponent<Image>();
+        img.color = new Color(0.12f, 0.18f, 0.32f, 0.95f);
+
+        var btn = _titleScoreboardBtnRoot.AddComponent<Button>();
+        btn.targetGraphic = img;
+        var colors = btn.colors;
+        colors.highlightedColor = new Color(0.2f, 0.35f, 0.55f, 1f);
+        colors.pressedColor = new Color(0.08f, 0.12f, 0.22f, 1f);
+        btn.colors = colors;
+        btn.onClick.AddListener(OpenScoreboardFromTitle);
+
+        var textGo = new GameObject("Text");
+        textGo.transform.SetParent(_titleScoreboardBtnRoot.transform, false);
+        var textRt = textGo.AddComponent<RectTransform>();
+        textRt.anchorMin = Vector2.zero;
+        textRt.anchorMax = Vector2.one;
+        textRt.offsetMin = new Vector2(6f, 4f);
+        textRt.offsetMax = new Vector2(-6f, -4f);
+        var label = textGo.AddComponent<Text>();
+        if (font != null) label.font = font;
+        label.fontSize = 28;
+        label.fontStyle = FontStyle.Bold;
+        label.color = new Color(0.85f, 0.9f, 1f, 1f);
+        label.alignment = TextAnchor.MiddleCenter;
+        label.raycastTarget = false;
+        label.text = "SCOREBOARD";
+    }
+
+    /// <summary>Title screen: opens <c>Results</c> in browse mode (top 10 only, no new score row).</summary>
+    public void OpenScoreboardFromTitle()
+    {
+        if (SceneHandling == null)
+            return;
+        StartCoroutine(OpenScoreboardFromTitleRoutine());
+    }
+
+    IEnumerator OpenScoreboardFromTitleRoutine()
+    {
+        var existing = SceneManager.GetSceneByName("Results");
+        if (existing.IsValid() && existing.isLoaded)
+            yield break;
+
+        ResultsSession.PublishScoreboardBrowse();
+        yield return SceneHandling.LoadScene("Results", LoadSceneMode.Additive);
     }
 
     /// <summary>

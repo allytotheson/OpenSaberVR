@@ -25,6 +25,9 @@ public class CalibrationSceneBootstrap : MonoBehaviour
         if (scene.IsValid() && scene.isLoaded)
             return;
 
+        SaberGameplayBootstrap.EnsureUdpReceiver();
+        SaberGameplayBootstrap.EnsureSerialReceiver();
+
         scene = UnityEngine.SceneManagement.SceneManager.CreateScene("Calibration");
         var go = new GameObject("CalibrationBootstrap");
         UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(go, scene);
