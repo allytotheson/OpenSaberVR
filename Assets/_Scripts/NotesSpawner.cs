@@ -35,7 +35,24 @@ public class NotesSpawner : MonoBehaviour
     [Tooltip("Cyan frame in front of the camera marking the rough cut plane (desktop testing).")]
     public bool showHitLineGuide = true;
 
+    [Header("Gameplay environment")]
+    [Tooltip("Spawn the same Stadium model used in the Menu as a distant backdrop in OpenSaber.")]
+    public bool showMenuStadiumInGameplay = true;
+
+    [Tooltip("Default: Menu uses Assets/_Models/Stadium/source/untitled.obj. Assign here for builds; in_editor fallback loads that path if empty.")]
+    public GameObject stadiumModelPrefab;
+
+    [Tooltip("Transform under GameplayStadiumBackdrop root — matches the Menu scene Stadium prefab instance.")]
+    public Vector3 stadiumBackdropLocalPosition = new Vector3(0f, -234.23027f, 15391.3955f);
+
+    public Vector3 stadiumBackdropLocalEuler = new Vector3(0f, 180f, 0f);
+
+    public Vector3 stadiumBackdropLocalScale = new Vector3(986.2327f, 986.2327f, 986.2327f);
+
     [Header("Desktop saber mesh (optional)")]
+    [Tooltip("When true, saber blades/capsules/billboards are not drawn; Slice/hits/gameplay stay active. Toggle off to show swords again.")]
+    public bool hideDesktopSaberVisuals = true;
+
     [FormerlySerializedAs("developerSwordVisualPrefab")]
     [Tooltip("Optional override for both hands. If empty: Editor loads Rumi sword from Assets/_Models/Lightsabers/.../Sword_01 (1).fbx; player builds need a prefab under a Resources/Lightsabers/ path (see TryLoadImportedSwordFromResources).")]
     public GameObject importedSwordVisualPrefab;
@@ -324,6 +341,50 @@ public class NotesSpawner : MonoBehaviour
             gameObject.AddComponent<SaberNearestBlockAlignmentProvider>();
 
         SaberGameplayBootstrap.EnsureAfterGameplayLoad();
+        EnsureStadiumBackdrop();
+    }
+
+    void EnsureStadiumBackdrop()
+    {
+        if (!showMenuStadiumInGameplay)
+            return;
+
+        Scene scene = gameObject.scene;
+        foreach (var root in scene.GetRootGameObjects())
+        {
+            if (root != null && root.name == "GameplayStadiumBackdropRoot")
+                return;
+        }
+
+        GameObject prefab = stadiumModelPrefab;
+#if UNITY_EDITOR
+        if (prefab == null)
+        {
+            prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/_Models/Stadium/source/untitled.obj");
+        }
+#endif
+        if (prefab == null)
+        {
+            Debug.LogWarning(
+                "[NotesSpawner] showMenuStadiumInGameplay is enabled but stadiumModelPrefab is not assigned. " +
+                "Assign the Stadium model (untitled.obj) on the Spawner, or add an editor Resources fallback.");
+            return;
+        }
+
+        var backdropRoot = new GameObject("GameplayStadiumBackdropRoot");
+        SceneManager.MoveGameObjectToScene(backdropRoot, scene);
+        GameObject inst = UObject.Instantiate(prefab, backdropRoot.transform, false);
+        inst.name = "Stadium";
+        Transform tr = inst.transform;
+        tr.localPosition = stadiumBackdropLocalPosition;
+        tr.localEulerAngles = stadiumBackdropLocalEuler;
+        tr.localScale = stadiumBackdropLocalScale;
+
+        foreach (var cam in inst.GetComponentsInChildren<Camera>(true))
+            cam.enabled = false;
+        foreach (var light in inst.GetComponentsInChildren<Light>(true))
+            light.enabled = false;
     }
 
     /// <summary>Loads a sword model placed under a <c>Resources</c> folder (path without extension).</summary>
@@ -356,11 +417,12 @@ public class NotesSpawner : MonoBehaviour
 
     private IEnumerator LoadAudio()
     {
-        var downloadHandler = new DownloadHandlerAudioClip(Songsettings.CurrentSong.AudioFilePath, AudioType.OGGVORBIS);
+        string audioUri = LocalAudioRequestUri.FromFilesystemPath(Songsettings.CurrentSong.AudioFilePath);
+        var downloadHandler = new DownloadHandlerAudioClip(audioUri, AudioType.OGGVORBIS);
         downloadHandler.compressed = false;
         downloadHandler.streamAudio = true;
         var uwr = new UnityWebRequest(
-                Songsettings.CurrentSong.AudioFilePath,
+                audioUri,
                 UnityWebRequest.kHttpVerbGET,
                 downloadHandler,
                 null);
@@ -368,6 +430,12 @@ public class NotesSpawner : MonoBehaviour
         var request = uwr.SendWebRequest();
         while (!request.isDone)
             yield return null;
+
+        if (uwr.result != UnityWebRequest.Result.Success)
+        {
+            Debug.LogError($"[NotesSpawner] Failed to load gameplay audio: {uwr.error} (URI: {audioUri})");
+            yield break;
+        }
 
         audioSource.clip = DownloadHandlerAudioClip.GetContent(uwr);
         audioLoaded = true;
@@ -564,6 +632,9 @@ public class NotesSpawner : MonoBehaviour
 
         var spawnedSide = demon.AddComponent<SpawnedNoteSaberSide>();
         spawnedSide.isLeftHandSaber = saberSideForColor == 0;
+
+        var spawnCut = demon.AddComponent<SpawnedNoteCutDirection>();
+        spawnCut.CutDirection = note.CutDirection;
     }
 
     /// <summary>Fallback to Cubes when Demons is empty (e.g. during migration).</summary>

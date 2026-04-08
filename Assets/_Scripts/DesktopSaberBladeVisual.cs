@@ -11,6 +11,9 @@ public class DesktopSaberBladeVisual : MonoBehaviour
     public float slashTravel = 0.95f;
     public float slashDuration = 0.14f;
 
+    [Tooltip("Hides proxy quads only; Slice/swing logic unchanged (e.g. NotesSpawner → DesktopSaberVisualHider).")]
+    public bool hideBladeProxy = false;
+
     private SwingDetector swing;
     private Transform bladeQuad;
     private Transform slashQuad;
@@ -145,6 +148,18 @@ public class DesktopSaberBladeVisual : MonoBehaviour
 
     void LateUpdate()
     {
+        if (hideBladeProxy)
+        {
+            if (bladeQuad != null)
+                bladeQuad.gameObject.SetActive(false);
+            if (slashQuad != null)
+                slashQuad.gameObject.SetActive(false);
+            return;
+        }
+
+        if (bladeQuad != null && !bladeQuad.gameObject.activeSelf)
+            bladeQuad.gameObject.SetActive(true);
+
         UpdateScaleCompensation();
         if (bladeQuad != null)
             bladeQuad.localScale = new Vector3(_quadScaleCompX, _quadScaleCompY, 1f);

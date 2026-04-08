@@ -96,6 +96,12 @@ public static class SaberGameplayBootstrap
             if (spawner != null && hasImuSource &&
                 spawner.GetComponent<UdpSelectToSwingBridge>() == null)
                 spawner.gameObject.AddComponent<UdpSelectToSwingBridge>();
+
+            if (spawner != null && spawner.GetComponent<DirectedDesktopSliceInput>() == null)
+                spawner.gameObject.AddComponent<DirectedDesktopSliceInput>();
+
+            if (spawner != null && spawner.GetComponent<DesktopSaberVisualHider>() == null)
+                spawner.gameObject.AddComponent<DesktopSaberVisualHider>();
         }
 #endif
     }
