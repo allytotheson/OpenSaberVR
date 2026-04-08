@@ -93,7 +93,15 @@ public class DemonHitDetector : MonoBehaviour
         }
 
         bool pulse = swingDetector != null && swingDetector.IsKeyboardPulseSwinging;
-        float radius = pulse ? overlapRadius * keyboardPulseOverlapScale : overlapRadius;
+        // Desktop keyboard pulses are handled by DirectedDesktopSliceInput (hand + cutDirection + proximity).
+        // Skipping here avoids destroying every overlapping note in the huge pulse overlap sphere.
+        if (pulse)
+        {
+            previousPos = transform.position;
+            return;
+        }
+
+        float radius = overlapRadius;
 
         if (TryHitWithOverlap(pulse, radius))
         {
@@ -127,6 +135,8 @@ public class DemonHitDetector : MonoBehaviour
         if (!enableTriggerHitPass || other == null)
             return;
         if (swingDetector == null || !swingDetector.IsSwinging)
+            return;
+        if (swingDetector.IsKeyboardPulseSwinging)
             return;
         if (!IsDemon(other.transform))
             return;

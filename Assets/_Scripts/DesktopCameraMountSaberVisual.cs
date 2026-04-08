@@ -27,6 +27,9 @@ public class DesktopCameraMountSaberVisual : MonoBehaviour
     [Tooltip("Hide red/blue capsule proxies when ImportedSaberBlade is parented under the Slice (show Rumi mesh only).")]
     public bool hideProxiesWhenImportedBladePresent = true;
 
+    [Tooltip("No desktop capsule proxies (e.g. driven from NotesSpawner → DesktopSaberVisualHider).")]
+    public bool hideBladeVisual = false;
+
     Transform _leftSlice;
     Transform _rightSlice;
     Transform _leftProxy;
@@ -70,6 +73,16 @@ public class DesktopCameraMountSaberVisual : MonoBehaviour
         if (GameplayCameraEnsurer.IsXrDeviceActive())
         {
             SetProxiesActive(false);
+            return;
+        }
+
+        if (hideBladeVisual)
+        {
+            SetProxiesActive(false);
+            DestroyProxy(ref _leftProxy);
+            DestroyProxy(ref _rightProxy);
+            _leftProxyTargetSlice = null;
+            _rightProxyTargetSlice = null;
             return;
         }
 

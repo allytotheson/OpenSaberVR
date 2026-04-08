@@ -9,11 +9,15 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class DesktopSaberTestInput : MonoBehaviour
 {
-    /// <summary>Fired when Z/comma triggers a left-hand desktop slash pulse (not auto-align micro-pulses).</summary>
+    /// <summary>Fired when comma, directed Z/Q, or Space (left) triggers a left-hand desktop slash pulse.</summary>
     public static event System.Action LeftKeyboardSlashPressed;
 
-    /// <summary>Fired when X/period triggers a right-hand desktop slash pulse.</summary>
+    /// <summary>Fired when period, directed M/O, or Space (right) triggers a right-hand desktop slash pulse.</summary>
     public static event System.Action RightKeyboardSlashPressed;
+
+    public static void NotifyLeftKeyboardSlashPressed() => LeftKeyboardSlashPressed?.Invoke();
+
+    public static void NotifyRightKeyboardSlashPressed() => RightKeyboardSlashPressed?.Invoke();
 
     [Header("Drive source")]
     [Tooltip("If false (default): keyboard + auto-align always drive sabers when this script runs. If true: valid UDP IMU replaces keyboard hand motion; Z/X/Space slash pulses still apply.")]
@@ -103,14 +107,15 @@ public class DesktopSaberTestInput : MonoBehaviour
         if (!TryResolveSabers(out GameObject left, out GameObject right))
             return;
 
-        // Slash keys always open SwingDetector's desktop pulse window (do not gate on IMU / ShouldUseKeyboard).
-        if (left != null && (Input.GetKeyDown(KeyCode.Z) || Input.GetKeyDown(KeyCode.Comma)))
+        // Directed cuts: Z/Q/M/O are handled by DirectedDesktopSliceInput (left/right × up/down).
+        // Comma/period still pulse for slash FX parity.
+        if (left != null && Input.GetKeyDown(KeyCode.Comma))
         {
             PulseSwing(left);
             LeftKeyboardSlashPressed?.Invoke();
         }
 
-        if (right != null && (Input.GetKeyDown(KeyCode.X) || Input.GetKeyDown(KeyCode.Period)))
+        if (right != null && Input.GetKeyDown(KeyCode.Period))
         {
             PulseSwing(right);
             RightKeyboardSlashPressed?.Invoke();
@@ -160,12 +165,20 @@ public class DesktopSaberTestInput : MonoBehaviour
 
     void PulseSwing(GameObject saberHandRoot)
     {
+        PulseSaberHand(saberHandRoot, keyboardSlashPulseSeconds);
+    }
+
+    /// <summary>Desktop swing gate for <see cref="DemonHitDetector"/> / directed slice.</summary>
+    public static void PulseSaberHand(GameObject saberHandRoot, float seconds)
+    {
+        if (saberHandRoot == null || seconds <= 0f)
+            return;
         var swing = saberHandRoot.GetComponent<SwingDetector>();
-        if (swing == null) swing = saberHandRoot.GetComponentInChildren<SwingDetector>();
+        if (swing == null)
+            swing = saberHandRoot.GetComponentInChildren<SwingDetector>();
         if (swing == null)
             return;
-
-        swing.PulseTestSwing(keyboardSlashPulseSeconds);
+        swing.PulseTestSwing(seconds);
     }
 
     private bool ShouldUseKeyboard(GameObject saber, bool isLeft)
