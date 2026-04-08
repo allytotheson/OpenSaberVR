@@ -970,10 +970,6 @@ PrefabInstance:
     m_RemovedGameObjects:
     - {fileID: 895749793, guid: 37d6f3449994d7d45bbd24d84c2c6626, type: 3}
     m_AddedGameObjects:
-    - targetCorrespondingSourceObject: {fileID: 6605414175879866589, guid: 37d6f3449994d7d45bbd24d84c2c6626,
-        type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1812430578}
     - targetCorrespondingSourceObject: {fileID: 460059150, guid: 37d6f3449994d7d45bbd24d84c2c6626,
         type: 3}
       insertIndex: 0
@@ -986,6 +982,10 @@ PrefabInstance:
         type: 3}
       insertIndex: -1
       addedObject: {fileID: 1064304045}
+    - targetCorrespondingSourceObject: {fileID: 460059150, guid: 37d6f3449994d7d45bbd24d84c2c6626,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1812430578}
     - targetCorrespondingSourceObject: {fileID: 460059150, guid: 37d6f3449994d7d45bbd24d84c2c6626,
         type: 3}
       insertIndex: -1
@@ -1118,12 +1118,6 @@ AudioSource:
 --- !u!224 &770543027 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 460059150, guid: 37d6f3449994d7d45bbd24d84c2c6626,
-    type: 3}
-  m_PrefabInstance: {fileID: 770543024}
-  m_PrefabAsset: {fileID: 0}
---- !u!4 &770543028 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 6605414175879866589, guid: 37d6f3449994d7d45bbd24d84c2c6626,
     type: 3}
   m_PrefabInstance: {fileID: 770543024}
   m_PrefabAsset: {fileID: 0}
@@ -1429,7 +1423,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1296350604
 RectTransform:
   m_ObjectHideFlags: 0
@@ -2065,12 +2059,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1812430577}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: -30.819773, z: 560.91986}
+  m_LocalScale: {x: 123.27909, y: 123.27909, z: 123.27909}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 770543028}
+  m_Father: {fileID: 770543027}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1812430579
 MonoBehaviour:

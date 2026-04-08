@@ -51,7 +51,7 @@ public class NotesSpawner : MonoBehaviour
 
     [Header("Desktop saber mesh (optional)")]
     [Tooltip("When true, saber blades/capsules/billboards are not drawn; Slice/hits/gameplay stay active. Toggle off to show swords again.")]
-    public bool hideDesktopSaberVisuals = true;
+    public bool hideDesktopSaberVisuals = false;
 
     [FormerlySerializedAs("developerSwordVisualPrefab")]
     [Tooltip("Optional override for both hands. If empty: Editor loads Rumi sword from Assets/_Models/Lightsabers/.../Sword_01 (1).fbx; player builds need a prefab under a Resources/Lightsabers/ path (see TryLoadImportedSwordFromResources).")]
@@ -196,20 +196,6 @@ public class NotesSpawner : MonoBehaviour
 
     void Start()
     {
-        if (GameplayCalibrationGate.BlocksNoteTimeline)
-        {
-            // OpenSaber should not be loaded while calibration is active with the current
-            // scene flow, but if it is (e.g. editor test), defer startup until the gate clears.
-            StartCoroutine(WaitForCalibrationThenStart());
-            return;
-        }
-        StartInternal();
-    }
-
-    IEnumerator WaitForCalibrationThenStart()
-    {
-        while (GameplayCalibrationGate.BlocksNoteTimeline)
-            yield return null;
         StartInternal();
     }
 
@@ -275,7 +261,11 @@ public class NotesSpawner : MonoBehaviour
 
         audioSource = GetComponent<AudioSource>();
 
+        if (FindAnyObjectByType<ScoreManager>(FindObjectsInactive.Include) == null)
+            gameObject.AddComponent<ScoreManager>();
+
         GameplayDebugHud.EnsureCreated(transform);
+        GameplayScorePanel.EnsureOnAnyGameplayHud();
 
         if (string.IsNullOrEmpty(jsonString))
         {
@@ -443,9 +433,6 @@ public class NotesSpawner : MonoBehaviour
 
     void Update()
     {
-        if (GameplayCalibrationGate.BlocksNoteTimeline)
-            return;
-
         var prevBeatsTime = BeatsTime;
 
         if (BeatsPreloadTime == null)
@@ -537,12 +524,14 @@ public class NotesSpawner : MonoBehaviour
 
         var sm = FindAnyObjectByType<ScoreManager>();
         int finalScore = sm != null ? sm.Score : 0;
+        int cutScore = sm != null ? sm.CutScore : 0;
+        int bonusScore = sm != null ? sm.BonusScore : 0;
         string songName = Songsettings != null && Songsettings.CurrentSong != null
             ? Songsettings.CurrentSong.Name : "Unknown";
         string difficulty = Songsettings != null && Songsettings.CurrentSong != null
             ? Songsettings.CurrentSong.SelectedDifficulty : "";
 
-        ResultsSession.PublishRunForResultsScene(finalScore, songName, difficulty);
+        ResultsSession.PublishRunForResultsScene(finalScore, cutScore, bonusScore, songName, difficulty);
         yield return SceneHandling.LoadScene("Results", LoadSceneMode.Additive);
         yield return SceneHandling.UnloadScene("OpenSaber");
     }

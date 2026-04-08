@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// Stores per-hand IMU calibration (gyro bias, rest orientation) with PlayerPrefs persistence.
-/// Populated by <see cref="ImuCalibrationController"/> in the Calibration scene.
+/// Populated by <see cref="ImuSaberInputProvider"/> during silent startup auto-calibration.
 /// </summary>
 public static class CalibrationData
 {

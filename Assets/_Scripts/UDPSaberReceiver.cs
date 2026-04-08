@@ -246,9 +246,11 @@ public class UDPSaberReceiver : MonoBehaviour, IImuSaberReceiver
             float.TryParse(parts[7], NumberStyles.Float, inv, out float jy) &&
             float.TryParse(parts[8], NumberStyles.Float, inv, out float sw))
         {
-            p.joystickX = Mathf.Clamp01(jx);
-            p.joystickY = Mathf.Clamp01(jy);
-            p.selectPressed = sw > 0.5f;
+            // Auto-detect raw ADC (0-65535 from RPi/MicroPython) vs pre-normalized (0-1).
+            p.joystickX = jx > 1.0f ? Mathf.Clamp01(jx / 65535f) : Mathf.Clamp01(jx);
+            p.joystickY = jy > 1.0f ? Mathf.Clamp01(jy / 65535f) : Mathf.Clamp01(jy);
+            // RPi button is pull-up (0 = pressed, 1 = released); invert so selectPressed = true when held.
+            p.selectPressed = sw < 0.5f;
             p.hasControllerExtras = true;
         }
 

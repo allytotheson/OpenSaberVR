@@ -64,12 +64,16 @@ public class SaberMotionController : MonoBehaviour
     private ISaberInputProvider _activeProvider;
     private ISaberInputProvider[] _providers;
     private bool _fallbackInitialized;
+    private bool _started;
 
     /// <summary>Currently active provider, or null if using built-in fallback.</summary>
     public ISaberInputProvider ActiveProvider => _activeProvider;
 
     void Start()
     {
+        if (_started) return;
+        _started = true;
+
         if (receiver == null) receiver = Object.FindAnyObjectByType<UDPSaberReceiver>();
         if (serialReceiver == null) serialReceiver = Object.FindAnyObjectByType<SerialSaberReceiver>();
         if (saberTransform == null) saberTransform = transform;
@@ -80,7 +84,7 @@ public class SaberMotionController : MonoBehaviour
         RefreshProviders();
         InitFallback();
 
-        // --- Diagnostic log — helps confirm correct hand wiring ---
+        // Diagnostic log — fires once per component instance.
         string providerList = _providers != null && _providers.Length > 0
             ? string.Join(", ", System.Array.ConvertAll(_providers, p => p.GetType().Name))
             : "none (will use built-in fallback)";

@@ -29,6 +29,15 @@ public static class MenuExitScreenHud
             SharedExitButtonLayout.ReferenceResolutionY);
         scaler.matchWidthOrHeight = SharedExitButtonLayout.MatchWidthOrHeight;
 
+        // Full-screen stretch so children lay out correctly when the canvas parent is a plain Transform (e.g. DDOL rig).
+        var rt = root.GetComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+        rt.localScale = Vector3.one;
+
         return root;
     }
 

@@ -437,7 +437,10 @@ public class MainMenu : MonoBehaviour
             PlayNewPreview = false;
             SongPreview.Stop();
             SongPreview.clip = PreviewAudioClip;
-            SongPreview.time = 40f;
+            // Skip intro (40s) when possible; clamp so we never seek past clip length (invalid seek in FMOD).
+            float clipLen = PreviewAudioClip.length;
+            float maxSeek = clipLen > 0.002f ? clipLen - 0.001f : 0f;
+            SongPreview.time = Mathf.Clamp(40f, 0f, maxSeek);
             SongPreview.Play();
         }
     }
@@ -570,30 +573,8 @@ public class MainMenu : MonoBehaviour
 
         EnsureCurrentSongReference();
 
-        // Always show calibration for non-VR desktop play.
-        // Do NOT check for existing UDPSaberReceiver here — it is created lazily by
-        // SaberGameplayBootstrap inside NotesSpawner.Start (after OpenSaber loads), so it
-        // won't exist yet at this point. Calibration has a Skip button and shows
-        // "No IMU receiver detected" if nothing is connected, so it is safe to always show it.
-        bool useImuCalibration = !GameplayCameraEnsurer.IsXrDeviceActive();
-
-        if (useImuCalibration)
-        {
-            // New flow: Calibration FIRST, then OpenSaber.
-            // OpenSaber (and therefore NotesSpawner/audio) is not loaded until calibration is done.
-            // ImuCalibrationController.LoadViaSceneHandling loads OpenSaber and unloads Calibration
-            // when the user completes or skips calibration.
-            GameplayCalibrationGate.BlocksNoteTimeline = true;
-            CalibrationSceneBootstrap.EnsureCalibrationScene();
-            yield return SceneHandling.UnloadScene("Menu");
-        }
-        else
-        {
-            // VR only: skip calibration and go straight to gameplay.
-            GameplayCalibrationGate.BlocksNoteTimeline = false;
-            yield return SceneHandling.LoadScene("OpenSaber", LoadSceneMode.Additive);
-            yield return SceneHandling.UnloadScene("Menu");
-        }
+        yield return SceneHandling.LoadScene("OpenSaber", LoadSceneMode.Additive);
+        yield return SceneHandling.UnloadScene("Menu");
     }
 
     public void AreYouSure()

@@ -10,6 +10,8 @@ using UnityEngine.UI;
 public class ResultsSceneController : MonoBehaviour
 {
     int _finalScore;
+    int _cutScore;
+    int _bonusScore;
     int _highlightRank = -1;
     string _songName;
     string _difficulty;
@@ -19,10 +21,12 @@ public class ResultsSceneController : MonoBehaviour
     {
         GameplayCameraEnsurer.Ensure();
 
-        if (ResultsSession.TryConsume(out bool browseOnly, out int score, out string sn, out string sd, out int hr))
+        if (ResultsSession.TryConsume(out bool browseOnly, out int score, out int cut, out int bonus, out string sn, out string sd, out int hr))
         {
             _scoreboardBrowseOnly = browseOnly;
             _finalScore = score;
+            _cutScore = cut;
+            _bonusScore = bonus;
             _songName = sn;
             _difficulty = sd;
             _highlightRank = hr;
@@ -32,6 +36,8 @@ public class ResultsSceneController : MonoBehaviour
             // Opened Results scene directly (e.g. editor) with no prior publish.
             _scoreboardBrowseOnly = false;
             _finalScore = 0;
+            _cutScore = 0;
+            _bonusScore = 0;
             _songName = "—";
             _difficulty = "";
             _highlightRank = -1;
@@ -63,8 +69,6 @@ public class ResultsSceneController : MonoBehaviour
 
     System.Collections.IEnumerator ReturnToMenuViaSceneHandling(SceneHandling sh)
     {
-        GameplayCalibrationGate.BlocksNoteTimeline = false;
-
         if (_scoreboardBrowseOnly)
         {
             TryUnloadScene("Results");
@@ -122,16 +126,25 @@ public class ResultsSceneController : MonoBehaviour
             MakeText(canvasGo.transform, "SongName", font, _songName + "  -  " + _difficulty, 24, FontStyle.Normal,
                 new Color(0.7f, 0.7f, 0.8f), new Vector2(0.5f, 1f), new Vector2(0f, -105f), new Vector2(800f, 35f));
 
-            MakeText(canvasGo.transform, "YourScoreLabel", font, "YOUR SCORE", 26, FontStyle.Normal,
-                new Color(0.8f, 0.8f, 0.8f), new Vector2(0.5f, 1f), new Vector2(0f, -160f), new Vector2(400f, 35f));
+            MakeText(canvasGo.transform, "CutScoreLabel", font, "CUT SCORE (accuracy)", 22, FontStyle.Normal,
+                new Color(0.75f, 0.75f, 0.8f), new Vector2(0.5f, 1f), new Vector2(0f, -145f), new Vector2(500f, 30f));
+            MakeText(canvasGo.transform, "CutScoreValue", font, _cutScore.ToString("N0"), 34, FontStyle.Bold,
+                Color.white, new Vector2(0.5f, 1f), new Vector2(0f, -178f), new Vector2(400f, 40f));
 
-            MakeText(canvasGo.transform, "YourScoreValue", font, _finalScore.ToString("N0"), 64, FontStyle.Bold,
+            MakeText(canvasGo.transform, "BonusLabel", font, "COMBO BONUS", 22, FontStyle.Normal,
+                new Color(0.75f, 0.75f, 0.8f), new Vector2(0.5f, 1f), new Vector2(0f, -218f), new Vector2(500f, 30f));
+            MakeText(canvasGo.transform, "BonusValue", font, _bonusScore.ToString("N0"), 34, FontStyle.Bold,
+                new Color(0.55f, 0.95f, 0.65f), new Vector2(0.5f, 1f), new Vector2(0f, -251f), new Vector2(400f, 40f));
+
+            MakeText(canvasGo.transform, "TotalLabel", font, "TOTAL SCORE", 26, FontStyle.Normal,
+                new Color(0.8f, 0.8f, 0.8f), new Vector2(0.5f, 1f), new Vector2(0f, -295f), new Vector2(400f, 35f));
+            MakeText(canvasGo.transform, "TotalValue", font, _finalScore.ToString("N0"), 64, FontStyle.Bold,
                 _highlightRank >= 0 && _highlightRank < 3
                     ? new Color(1f, 0.84f, 0f)
                     : Color.white,
-                new Vector2(0.5f, 1f), new Vector2(0f, -215f), new Vector2(400f, 70f));
+                new Vector2(0.5f, 1f), new Vector2(0f, -350f), new Vector2(400f, 70f));
 
-            lbHeaderY = -310f;
+            lbHeaderY = -445f;
         }
 
         MakeText(canvasGo.transform, "LBHeader", font, "TOP 10", 30, FontStyle.Bold,

@@ -1,32 +1,38 @@
 using UnityEngine;
 
 /// <summary>
-/// Non-VR desktop: Q/Z/O/M (JSON <c>_cutDirection</c> 0 = down/BOTTOM, 1 = up/TOP; <c>_type</c> 0 = left, 1 = right).
-/// Q/Z = left saber, O/M = right. Cut direction is <b>flipped</b> vs “top-row = up”: Q/O match <c>_cutDirection</c> 1, Z/M match 0.
-/// <list type="bullet">
-/// <item>Q — left, <c>_cutDirection</c> 1 (up)</item>
-/// <item>Z — left, <c>_cutDirection</c> 0 (down)</item>
-/// <item>O — right, <c>_cutDirection</c> 1 (up)</item>
-/// <item>M — right, <c>_cutDirection</c> 0 (down)</item>
-/// </list>
-/// Notes must be near the hit plane and within <see cref="maxDistanceFromPlayerMeters"/> of the gameplay camera.
-/// Keyboard pulse hits are handled only here; <see cref="DemonHitDetector"/> skips destroying while <see cref="SwingDetector.IsKeyboardPulseSwinging"/>.
+/// Detects saber slices from IMU angular velocity (gyroscope magnitude) on COM6/COM7 serial controllers.
+/// Replaces keyboard-based Q/Z/O/M input. When the gyro magnitude of a hand exceeds
+/// <see cref="sliceGyroThreshold"/> (deg/s), the nearest qualifying note for that hand is cut.
+/// All blocks are treated as non-directional — only the correct hand (left/right) is matched.
 /// </summary>
 [DefaultExecutionOrder(298)]
 public sealed class DirectedDesktopSliceInput : MonoBehaviour
 {
-    [Header("Directed hit window (tune here)")]
-    [Tooltip("Beyond this |signed distance| from the hit plane the slice does not register (larger = easier timing).")]
+    [Header("IMU Slice Detection")]
+    [Tooltip("Gyroscope magnitude (deg/s) that counts as a slice. Lower = more sensitive. Tune between 120-250.")]
+    public float sliceGyroThreshold = 150f;
+
+    [Tooltip("Minimum seconds between two slices on the same hand (prevents double-hits from one swing).")]
+    public float sliceCooldown = 0.3f;
+
+    [Header("Note hit window")]
+    [Tooltip("Max |signed distance| from the hit plane for a note to be hittable (meters).")]
     public float maxPlaneDistanceMeters = 0.66f;
 
-    [Tooltip("Note must be at most this far from the gameplay camera (meters) to register.")]
+    [Tooltip("Max distance from the gameplay camera to the note (meters).")]
     public float maxDistanceFromPlayerMeters = 4.5f;
 
-    [Tooltip("Pulse length passed to SwingDetector (visual / overlap gate).")]
+    [Tooltip("Pulse length passed to SwingDetector (drives visual/overlap gate).")]
     public float keyboardSlashPulseSeconds = 0.42f;
 
-    [Tooltip("Disable DesktopSaberTestInput auto-pulse near plane so only directed keys cut.")]
-    public bool disableAutoPulseNearNote = true;
+    // Per-hand cooldown timers
+    float _leftCooldown;
+    float _rightCooldown;
+
+    // Rising-edge detection: were we above threshold last frame?
+    bool _prevLeftAbove;
+    bool _prevRightAbove;
 
     ScoreManager _score;
     Saber _leftSaberHaptics;
@@ -34,23 +40,13 @@ public sealed class DirectedDesktopSliceInput : MonoBehaviour
 
     void Awake()
     {
-        if (GameplayCameraEnsurer.IsXrDeviceActive())
-            enabled = false;
+        // This component still operates in non-XR desktop/IMU mode.
+        // Keep enabled even if XR device is active so it can work with the serial controllers.
     }
 
     void Start()
     {
         _score = FindAnyObjectByType<ScoreManager>();
-
-        if (disableAutoPulseNearNote && !GameplayCameraEnsurer.IsXrDeviceActive())
-        {
-            foreach (var d in FindObjectsByType<DesktopSaberTestInput>(FindObjectsInactive.Include))
-            {
-                if (d != null)
-                    d.autoPulseSwingNearNote = false;
-            }
-        }
-
         CacheSaberHaptics();
     }
 
@@ -66,35 +62,46 @@ public sealed class DirectedDesktopSliceInput : MonoBehaviour
 
     void LateUpdate()
     {
-#if UNITY_EDITOR || UNITY_STANDALONE
-        if (GameplayCameraEnsurer.IsXrDeviceActive())
+        // Count down cooldown timers.
+        if (_leftCooldown > 0f)  _leftCooldown  -= Time.deltaTime;
+        if (_rightCooldown > 0f) _rightCooldown -= Time.deltaTime;
+
+        var imu = ImuSourceResolver.GetActiveSource();
+        if (imu == null)
             return;
 
-        // Q,Z = left; O,M = right. Flipped cut vs geometric row: Q/O → JSON 1, Z/M → JSON 0.
-        if (Input.GetKeyDown(KeyCode.Q))
-            TryDirectedSlice(leftHand: true, cutUp: true);
-        if (Input.GetKeyDown(KeyCode.Z))
-            TryDirectedSlice(leftHand: true, cutUp: false);
-        if (Input.GetKeyDown(KeyCode.O))
-            TryDirectedSlice(leftHand: false, cutUp: true);
-        if (Input.GetKeyDown(KeyCode.M))
-            TryDirectedSlice(leftHand: false, cutUp: false);
+        float leftGyro  = imu.LeftSaberData.valid  ? imu.LeftSaberData.angularVelocity.magnitude  : 0f;
+        float rightGyro = imu.RightSaberData.valid ? imu.RightSaberData.angularVelocity.magnitude : 0f;
+
+        // Rising edge: above threshold this frame but not last frame.
+        bool leftAbove  = leftGyro  >= sliceGyroThreshold;
+        bool rightAbove = rightGyro >= sliceGyroThreshold;
+
+        if (leftAbove && !_prevLeftAbove && _leftCooldown <= 0f)
+        {
+            TrySlice(leftHand: true);
+            _leftCooldown = sliceCooldown;
+        }
+
+        if (rightAbove && !_prevRightAbove && _rightCooldown <= 0f)
+        {
+            TrySlice(leftHand: false);
+            _rightCooldown = sliceCooldown;
+        }
+
+        _prevLeftAbove  = leftAbove;
+        _prevRightAbove = rightAbove;
+
+#if UNITY_EDITOR || UNITY_STANDALONE
+        // Keep keyboard fallback for editor testing (no hardware attached).
+        if (Input.GetKeyDown(KeyCode.Q)) { TrySlice(true);  _leftCooldown  = sliceCooldown; }
+        if (Input.GetKeyDown(KeyCode.Z)) { TrySlice(true);  _leftCooldown  = sliceCooldown; }
+        if (Input.GetKeyDown(KeyCode.O)) { TrySlice(false); _rightCooldown = sliceCooldown; }
+        if (Input.GetKeyDown(KeyCode.M)) { TrySlice(false); _rightCooldown = sliceCooldown; }
 #endif
     }
 
-    /// <summary>Left hand, down — <c>_cutDirection</c> 0 (keyboard: Z).</summary>
-    public void SimHardwareLeftDown() => TryDirectedSlice(true, cutUp: false);
-
-    /// <summary>Left hand, up — <c>_cutDirection</c> 1 (keyboard: Q).</summary>
-    public void SimHardwareLeftUp() => TryDirectedSlice(true, cutUp: true);
-
-    /// <summary>Right hand, down — <c>_cutDirection</c> 0 (keyboard: M).</summary>
-    public void SimHardwareRightDown() => TryDirectedSlice(false, cutUp: false);
-
-    /// <summary>Right hand, up — <c>_cutDirection</c> 1 (keyboard: O).</summary>
-    public void SimHardwareRightUp() => TryDirectedSlice(false, cutUp: true);
-
-    void TryDirectedSlice(bool leftHand, bool cutUp)
+    void TrySlice(bool leftHand)
     {
         if (!DesktopSaberTestInput.TryResolveSabers(out GameObject leftRoot, out GameObject rightRoot))
             return;
@@ -109,10 +116,8 @@ public sealed class DirectedDesktopSliceInput : MonoBehaviour
         else
             DesktopSaberTestInput.NotifyRightKeyboardSlashPressed();
 
-        NotesSpawner.CutDirection expected = cutUp ? NotesSpawner.CutDirection.TOP : NotesSpawner.CutDirection.BOTTOM;
-
-        DemonHandling bestDh = null;
-        float bestAbs = float.MaxValue;
+        DemonHandling bestDh   = null;
+        float         bestAbs  = float.MaxValue;
 
         foreach (var dh in FindObjectsByType<DemonHandling>(FindObjectsInactive.Exclude))
         {
@@ -120,18 +125,14 @@ public sealed class DirectedDesktopSliceInput : MonoBehaviour
                 continue;
 
             var side = dh.GetComponent<SpawnedNoteSaberSide>();
-            var cut = dh.GetComponent<SpawnedNoteCutDirection>();
-            if (side == null || cut == null)
+            if (side == null || side.isLeftHandSaber != leftHand)
                 continue;
 
-            if (side.isLeftHandSaber != leftHand)
-                continue;
-            if (cut.CutDirection != expected)
-                continue;
+            // Direction is intentionally NOT checked — all blocks are treated as non-directional.
 
             Vector3 sample = DemonHitDetectorSampleUtil.SampleNotePoint(dh.transform);
-            float s = BeatSaberHitLineGuide.SignedDistanceToGameplayHitPlane(sample);
-            float abs = Mathf.Abs(s);
+            float   s      = BeatSaberHitLineGuide.SignedDistanceToGameplayHitPlane(sample);
+            float   abs    = Mathf.Abs(s);
             if (abs > maxPlaneDistanceMeters)
                 continue;
 
@@ -144,25 +145,24 @@ public sealed class DirectedDesktopSliceInput : MonoBehaviour
             if (abs < bestAbs)
             {
                 bestAbs = abs;
-                bestDh = dh;
+                bestDh  = dh;
             }
         }
 
         if (bestDh == null)
             return;
 
-        var slice = hand.GetComponentInChildren<Slice>(true);
+        var slice  = hand.GetComponentInChildren<Slice>(true);
         int points = ComputeAccuracyPoints(bestAbs);
         DirectedSliceHitEffects.ApplyHit(bestDh, slice, _score, points,
             leftHand ? _leftSaberHaptics : _rightSaberHaptics);
-        DirectedSwipeCornerHud.FlashRegisteredSwipe(leftHand, cutUp);
+        DirectedSwipeCornerHud.FlashRegisteredSwipe(leftHand, cutUp: true);
     }
 
     int ComputeAccuracyPoints(float absPlaneDistance)
     {
-        float t = Mathf.Clamp01(absPlaneDistance / Mathf.Max(1e-4f, maxPlaneDistanceMeters));
+        float t   = Mathf.Clamp01(absPlaneDistance / Mathf.Max(1e-4f, maxPlaneDistanceMeters));
         float inv = 1f - t;
-        // Beat Saber–like band: ~50 worst in window, 115 at perfect
         return Mathf.Clamp(Mathf.RoundToInt(50f + inv * inv * 65f), 1, 115);
     }
 
@@ -173,6 +173,20 @@ public sealed class DirectedDesktopSliceInput : MonoBehaviour
         cam = Camera.main;
         return cam != null;
     }
+
+    // ---- Public simulation methods (editor / unit tests) ----
+
+    /// <summary>Simulate a left-hand slice (e.g. from external test harness).</summary>
+    public void SimHardwareLeft()  => TrySlice(true);
+
+    /// <summary>Simulate a right-hand slice (e.g. from external test harness).</summary>
+    public void SimHardwareRight() => TrySlice(false);
+
+    // Legacy names kept so any scene references don't break.
+    public void SimHardwareLeftDown()  => TrySlice(true);
+    public void SimHardwareLeftUp()    => TrySlice(true);
+    public void SimHardwareRightDown() => TrySlice(false);
+    public void SimHardwareRightUp()   => TrySlice(false);
 }
 
 /// <summary>Shared sampling for hit tests (note collider center or position).</summary>
@@ -196,7 +210,7 @@ public static class DirectedSliceHitEffects
             return;
 
         var root = dh.transform;
-        var go = root.gameObject;
+        var go   = root.gameObject;
 
         dh.enabled = false;
 
@@ -211,7 +225,7 @@ public static class DirectedSliceHitEffects
             GameObject[] cutted = slicer.SliceObject(go);
             if (cutted != null && cutted.Length > 0)
             {
-                var debris = Object.Instantiate(go);
+                var debris   = Object.Instantiate(go);
                 var debrisDh = debris.GetComponent<DemonHandling>();
                 if (debrisDh != null)
                     debrisDh.enabled = false;

@@ -23,6 +23,10 @@ public class ImuSaberInputProvider : MonoBehaviour, ISaberInputProvider
     [Tooltip("Scale accel (g) to position influence.")]
     public float accelPositionScale = 0.01f;
 
+    [Header("Startup Auto-Calibration")]
+    [Tooltip("Seconds after first valid packet to silently collect gyro/accel samples and compute bias + rest orientation. 0 = disabled.")]
+    public float startupCalibrationDuration = 2.5f;
+
     [Header("IMU Fusion")]
     [Range(0.9f, 0.999f)]
     [Tooltip("Complementary filter: 1 = pure gyro, lower = more accel trust.")]
@@ -63,6 +67,13 @@ public class ImuSaberInputProvider : MonoBehaviour, ISaberInputProvider
     private Vector3 _gyroBias;
     private SaberMotionController.SaberHand _lastHand;
     private bool _initialized;
+
+    // Startup auto-calibration state
+    private bool _startupCalDone;
+    private float _startupCalTimer;
+    private int _startupCalCount;
+    private Vector3 _startupGyroAccum;
+    private Vector3 _startupAccelAccum;
 
     public IImuSaberReceiver ResolveImuSource()
     {
@@ -120,6 +131,51 @@ public class ImuSaberInputProvider : MonoBehaviour, ISaberInputProvider
         {
             saberTransform.SetPositionAndRotation(_currentPosition, _currentRotation);
             return;
+        }
+
+        // Silent startup auto-calibration: collect samples for the first N seconds of valid data,
+        // then commit gyro bias + rest orientation without any UI.
+        if (!_startupCalDone && startupCalibrationDuration > 0f)
+        {
+            _startupCalTimer += Time.deltaTime;
+            _startupGyroAccum += data.angularVelocity;
+            _startupAccelAccum += data.acceleration;
+            _startupCalCount++;
+
+            if (_startupCalTimer >= startupCalibrationDuration && _startupCalCount > 0)
+            {
+                Vector3 avgGyro  = _startupGyroAccum / _startupCalCount;
+                Vector3 avgAccel = _startupAccelAccum / _startupCalCount;
+
+                // Gyro bias is the raw average (subtract to correct future readings).
+                Vector3 rawBias = new Vector3(-avgGyro.x, -avgGyro.y, -avgGyro.z);
+
+                // Rest orientation from average gravity direction.
+                Vector3 up = avgAccel.normalized;
+                Vector3 fwd = Vector3.Cross(up, hand == SaberMotionController.SaberHand.Left ? Vector3.right : -Vector3.right);
+                if (fwd.sqrMagnitude < 0.01f) fwd = Vector3.forward;
+                else fwd.Normalize();
+                Quaternion restOri = Quaternion.LookRotation(fwd, up);
+
+                _gyroBias = rawBias;
+                _currentRotation = restOri;
+
+                CalibrationData.Set(hand, new CalibrationData.HandCalibration
+                {
+                    gyroBias = rawBias,
+                    restOrientation = restOri,
+                    restAccel = avgAccel,
+                    isCalibrated = true
+                });
+
+                _startupCalDone = true;
+                Debug.Log($"[ImuSaberInputProvider] {hand} auto-cal done after {_startupCalCount} samples. " +
+                          $"Bias={rawBias:F3}, RestAccel={avgAccel:F3}");
+            }
+        }
+        else
+        {
+            _startupCalDone = true; // startupCalibrationDuration == 0: skip
         }
 
         Vector3 rawGyro = new Vector3(

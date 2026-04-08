@@ -38,6 +38,8 @@ public class GameplayDebugHud : MonoBehaviour
 
         _skipBar = CreateSkipBar(canvasGo.transform, font, OnSkipToResultsClicked);
         _skipBar.SetActive(false);
+
+        GameplayScorePanel.EnsureOnCanvas(canvasGo.transform, font);
     }
 
     static GameObject CreateSkipBar(Transform canvasTransform, Font font, UnityAction onSkipClick)
