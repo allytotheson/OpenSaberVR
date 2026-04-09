@@ -420,9 +420,13 @@ public class DemonHitDetector : MonoBehaviour
                 c.enabled = false;
         }
 
+        var saberSide = go.GetComponent<SpawnedNoteSaberSide>();
+        bool isLeftNote = saberSide != null && saberSide.isLeftHandSaber;
+
         if (slicer != null)
         {
-            GameObject[] cutted = slicer.SliceObject(go);
+            Material crossMat = TeamNoteColors.GetSliceCrossSectionMaterial(isLeftNote);
+            GameObject[] cutted = slicer.SliceObject(go, crossMat);
             if (cutted != null && cutted.Length > 0)
             {
                 var debris = Instantiate(go);
@@ -448,6 +452,14 @@ public class DemonHitDetector : MonoBehaviour
             }
         }
 
+        int pts = 0;
+        bool perfectFx = false;
+        if (scoreManager != null)
+        {
+            pts = scoreManager.RegisterHit();
+            perfectFx = pts > HitMissFlyout.PointGainPerfectThreshold;
+        }
+
         {
             Vector3 fxCenter = DemonHitDetectorSampleUtil.SampleNotePoint(root);
             Vector3 tipVel = Vector3.zero;
@@ -458,14 +470,11 @@ public class DemonHitDetector : MonoBehaviour
                     tipVel = smc.GetTipVelocity();
             }
             Vector3 velForFx = tipVel.sqrMagnitude > 1e-6f ? tipVel : Vector3.up * 1.5f;
-            DirectedSliceWorldFx.Play(fxCenter, velForFx);
+            DirectedSliceWorldFx.Play(fxCenter, velForFx, TeamNoteColors.Get(isLeftNote), perfectFx);
         }
 
         if (scoreManager != null)
-        {
-            int pts = scoreManager.RegisterHit();
-            HitMissFlyout.ShowPointGain(pts);
-        }
+            HitMissFlyout.ShowPointGain(pts, isLeftNote);
 
         if (vrHaptics != null)
             vrHaptics.TriggerHitHaptic();

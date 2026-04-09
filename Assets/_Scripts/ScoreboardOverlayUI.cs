@@ -4,20 +4,24 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Full-screen overlay: transparent blue glass panel with glow border, optional run stats, single-column top-10 list.
+/// Full-screen overlay: single transparent purple glass panel (no stacked Shadow layers), single-column top-10 list.
 /// Layout uses top-anchored negative Y so all content stays inside the glass (Unity UI: positive Y from top anchor pushes outside).
+/// Editor: OpenSaber / UI / Add Scoreboard Overlay to Scene (editable, not play) spawns the same hierarchy for layout edits without Play mode.
 /// </summary>
 public static class ScoreboardOverlayUI
 {
     public const int SortingOrder = 400;
 
-    /// <summary>Soft outer halo behind the panel (multiplied with Shadow).</summary>
-    static readonly Color PanelGlowTint = new Color(0.12f, 0.45f, 0.95f, 0.2f);
-    /// <summary>Main panel fill — transparent blue glass.</summary>
-    static readonly Color GlassFill = new Color(0.06f, 0.2f, 0.48f, 0.38f);
-    static readonly Color InnerScoreBg = new Color(0.05f, 0.18f, 0.4f, 0.55f);
-    static readonly Color TitleCyan = new Color(0.45f, 0.95f, 1f, 1f);
+    /// <summary>Single panel fill — transparent purple glass (no duplicate opaque layers).</summary>
+    static readonly Color GlassFill = new Color(0.14f, 0.06f, 0.26f, 0.36f);
+    static readonly Color InnerScoreBg = new Color(0.11f, 0.05f, 0.2f, 0.65f);
+    static readonly Color TitleAccent = new Color(0.9f, 0.78f, 1f, 1f);
+    static readonly Color BorderAccent = new Color(0.72f, 0.48f, 1f, 0.92f);
 
+    /// <param name="forAuthoringPreview">
+    /// When true (editor tooling only), skips <see cref="ScoreboardOverlayDriver"/> so the overlay stays in the scene
+    /// for layout edits; keyboard / button dismiss are not wired.
+    /// </param>
     public static GameObject Build(
         Transform parent,
         bool browseOnly,
@@ -27,8 +31,12 @@ public static class ScoreboardOverlayUI
         string songName,
         string difficulty,
         int highlightRank,
-        Action onDismiss)
+        Action onDismiss,
+        bool forAuthoringPreview = false)
     {
+        _ = cutScore;
+        _ = bonusScore;
+
         Font font = MenuExitScreenHud.ResolveMenuFont();
         if (font == null)
             font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -38,35 +46,24 @@ public static class ScoreboardOverlayUI
         if (canvas != null)
             canvas.sortingOrder = SortingOrder;
 
-        var driver = root.AddComponent<ScoreboardOverlayDriver>();
-        driver.Bind(browseOnly, highlightRank, onDismiss);
+        ScoreboardOverlayDriver driver = null;
+        if (!forAuthoringPreview)
+        {
+            driver = root.AddComponent<ScoreboardOverlayDriver>();
+            driver.Bind(browseOnly, highlightRank, onDismiss);
+        }
 
-        var dim = NewImage(root.transform, "Dim", new Color(0f, 0.02f, 0.06f, 0.45f));
+        var dim = NewImage(root.transform, "Dim", new Color(0.02f, 0f, 0.06f, 0.42f));
         StretchFull(dim);
 
-        // --- Panel: outer glow + transparent blue glass + crisp cyan border ---
-        var frameOuter = NewImage(root.transform, "PanelGlow", PanelGlowTint);
-        var frameRt = frameOuter.GetComponent<RectTransform>();
-        frameRt.anchorMin = frameRt.anchorMax = new Vector2(0.5f, 0.5f);
-        frameRt.sizeDelta = new Vector2(1136f, 936f);
-
-        var outerShadow = frameOuter.gameObject.AddComponent<Shadow>();
-        outerShadow.effectColor = new Color(0.35f, 0.82f, 1f, 0.75f);
-        outerShadow.effectDistance = new Vector2(14f, -14f);
-
-        var glass = NewImage(frameOuter.transform, "Glass", GlassFill);
+        // Single transparent panel + outline only (Unity UI Shadow draws offset copies — removed to avoid ghosted layers).
+        var glass = NewImage(root.transform, "Glass", GlassFill);
         var glassRt = glass.GetComponent<RectTransform>();
-        glassRt.anchorMin = Vector2.zero;
-        glassRt.anchorMax = Vector2.one;
-        glassRt.offsetMin = new Vector2(10f, 10f);
-        glassRt.offsetMax = new Vector2(-10f, -10f);
-
-        var glassShadow = glass.gameObject.AddComponent<Shadow>();
-        glassShadow.effectColor = new Color(0.25f, 0.7f, 1f, 0.5f);
-        glassShadow.effectDistance = new Vector2(5f, -5f);
+        glassRt.anchorMin = glassRt.anchorMax = new Vector2(0.5f, 0.5f);
+        glassRt.sizeDelta = new Vector2(1136f, 936f);
 
         var glassOutline = glass.gameObject.AddComponent<Outline>();
-        glassOutline.effectColor = new Color(0.45f, 0.95f, 1f, 0.95f);
+        glassOutline.effectColor = BorderAccent;
         glassOutline.effectDistance = new Vector2(2.5f, -2.5f);
 
         // Content stacks from top — anchor top, negative Y moves down into panel
@@ -74,28 +71,16 @@ public static class ScoreboardOverlayUI
 
         string mainTitle = browseOnly ? "HIGH SCORES" : "RESULTS";
         MakeTextTop(glass.transform, "Title", font, mainTitle, 46, FontStyle.Bold,
-            TitleCyan, -y, 920f, 56f);
+            TitleAccent, -y, 920f, 56f);
         y += 58f;
 
         if (!browseOnly)
         {
             MakeTextTop(glass.transform, "SongName", font, songName + "  —  " + difficulty, 21, FontStyle.Normal,
-                new Color(0.65f, 0.82f, 0.95f), -y, 960f, 30f);
+                new Color(0.82f, 0.72f, 0.95f), -y, 960f, 30f);
             y += 36f;
 
-            MakeTextTop(glass.transform, "CutScoreLabel", font, "CUT SCORE (accuracy)", 17, FontStyle.Normal,
-                new Color(0.55f, 0.65f, 0.78f), -y, 360f, 24f, xOffset: -220f);
-            MakeTextTop(glass.transform, "CutScoreValue", font, cutScore.ToString("N0"), 24, FontStyle.Bold,
-                Color.white, -y, 200f, 32f, xOffset: 220f);
-            y += 34f;
-
-            MakeTextTop(glass.transform, "BonusLabel", font, "COMBO BONUS", 17, FontStyle.Normal,
-                new Color(0.55f, 0.65f, 0.78f), -y, 360f, 24f, xOffset: -220f);
-            MakeTextTop(glass.transform, "BonusValue", font, bonusScore.ToString("N0"), 24, FontStyle.Bold,
-                new Color(0.45f, 0.95f, 0.6f), -y, 200f, 32f, xOffset: 220f);
-            y += 44f;
-
-            // Dark inner strip for total (reference: solid bar behind big score)
+            // Dark inner strip for total
             var totalBg = NewImage(glass.transform, "TotalBg", InnerScoreBg);
             var totalBgRt = totalBg.GetComponent<RectTransform>();
             totalBgRt.anchorMin = new Vector2(0.5f, 1f);
@@ -109,7 +94,7 @@ public static class ScoreboardOverlayUI
             MakeTextTop(glass.transform, "TotalValue", font, finalScore.ToString("N0"), 48, FontStyle.Bold,
                 highlightRank >= 0 && highlightRank < 3
                     ? new Color(1f, 0.88f, 0.35f)
-                    : TitleCyan,
+                    : TitleAccent,
                 -y - 44f, 520f, 64f);
             y += 120f;
         }
@@ -119,7 +104,7 @@ public static class ScoreboardOverlayUI
         }
 
         MakeTextTop(glass.transform, "LBHeader", font, "TOP 10", 26, FontStyle.Bold,
-            new Color(0.4f, 0.95f, 1f), -y, 600f, 36f);
+            new Color(0.82f, 0.65f, 1f), -y, 600f, 36f);
         y += 40f;
 
         // Scroll region: keeps rows inside glass; button stays below
@@ -151,7 +136,7 @@ public static class ScoreboardOverlayUI
             hint.text = "Top 10 — enter your name:";
             hint.fontSize = 18;
             hint.fontStyle = FontStyle.Italic;
-            hint.color = new Color(0.7f, 0.85f, 0.95f);
+            hint.color = new Color(0.82f, 0.7f, 0.95f);
             hint.alignment = TextAnchor.MiddleCenter;
 
             var input = CreateNameInput(nameBlock.transform, font);
@@ -160,8 +145,11 @@ public static class ScoreboardOverlayUI
             inputRt.pivot = new Vector2(0.5f, 1f);
             inputRt.anchoredPosition = new Vector2(0f, -34f);
             inputRt.sizeDelta = new Vector2(480f, 48f);
-            driver.SetNameInput(input);
-            input.ActivateInputField();
+            if (driver != null)
+            {
+                driver.SetNameInput(input);
+                input.ActivateInputField();
+            }
         }
 
         // Bottom controls (anchored to bottom of glass so they never overlap list)
@@ -175,22 +163,23 @@ public static class ScoreboardOverlayUI
         btnRt.sizeDelta = new Vector2(340f, 58f);
 
         var btnImg = btnGo.AddComponent<Image>();
-        btnImg.color = new Color(0.04f, 0.12f, 0.22f, 0.95f);
+        btnImg.color = new Color(0.14f, 0.06f, 0.22f, 0.92f);
         var btnOutline = btnGo.AddComponent<Outline>();
-        btnOutline.effectColor = new Color(0.3f, 0.85f, 1f, 0.85f);
+        btnOutline.effectColor = new Color(0.65f, 0.42f, 0.95f, 0.9f);
         btnOutline.effectDistance = new Vector2(2f, -2f);
 
         var btn = btnGo.AddComponent<Button>();
         btn.targetGraphic = btnImg;
         var colors = btn.colors;
-        colors.highlightedColor = new Color(0.08f, 0.22f, 0.38f, 1f);
-        colors.pressedColor = new Color(0.02f, 0.08f, 0.14f, 1f);
+        colors.highlightedColor = new Color(0.22f, 0.1f, 0.34f, 1f);
+        colors.pressedColor = new Color(0.1f, 0.04f, 0.16f, 1f);
         btn.colors = colors;
 
         string btnLabel = browseOnly ? "BACK" : "PLAY AGAIN";
-        MakeTextCentered(btnGo.transform, "BtnLabel", font, btnLabel, 27, FontStyle.Bold, TitleCyan);
+        MakeTextCentered(btnGo.transform, "BtnLabel", font, btnLabel, 27, FontStyle.Bold, TitleAccent);
 
-        btn.onClick.AddListener(driver.DismissFromButton);
+        if (driver != null)
+            btn.onClick.AddListener(driver.DismissFromButton);
 
         var footGo = new GameObject("FooterHint");
         footGo.transform.SetParent(glass.transform, false);
@@ -205,7 +194,7 @@ public static class ScoreboardOverlayUI
         foot.text = "Enter / Space / Esc — continue";
         foot.fontSize = 15;
         foot.fontStyle = FontStyle.Italic;
-        foot.color = new Color(0.45f, 0.55f, 0.65f);
+        foot.color = new Color(0.55f, 0.45f, 0.68f);
         foot.alignment = TextAnchor.MiddleCenter;
 
         return root;
@@ -226,7 +215,7 @@ public static class ScoreboardOverlayUI
         scrollRt.sizeDelta = new Vector2(920f, listHeight);
 
         var scrollImg = scrollGo.AddComponent<Image>();
-        scrollImg.color = new Color(0.02f, 0.04f, 0.07f, 0.25f);
+        scrollImg.color = new Color(0.08f, 0.04f, 0.12f, 0.28f);
         scrollImg.raycastTarget = true;
 
         var viewport = new GameObject("Viewport");
@@ -326,9 +315,9 @@ public static class ScoreboardOverlayUI
         root.AddComponent<RectTransform>();
 
         var img = root.AddComponent<Image>();
-        img.color = new Color(0.03f, 0.06f, 0.1f, 0.95f);
+        img.color = new Color(0.1f, 0.05f, 0.16f, 0.92f);
         var o = root.AddComponent<Outline>();
-        o.effectColor = new Color(0.25f, 0.8f, 1f, 0.5f);
+        o.effectColor = new Color(0.55f, 0.35f, 0.85f, 0.65f);
         o.effectDistance = new Vector2(1.5f, -1.5f);
 
         var input = root.AddComponent<InputField>();

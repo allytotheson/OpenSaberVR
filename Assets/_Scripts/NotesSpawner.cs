@@ -55,6 +55,36 @@ public class NotesSpawner : MonoBehaviour
     [Tooltip("Right-hand notes (saber side 1). Default: Assets/_Material/PurpleDemon.mat")]
     public Material demonNoteGlowMaterialRight;
 
+    [Header("Demon faces on cube notes")]
+    [Tooltip("Random demon PNG on the front strike face of each cube note (same size as that face).")]
+    public bool showRandomDemonFaces = true;
+
+    [Tooltip("Optional: left-hand (purple team) faces for builds. If empty, uses Assets/demons/purple (Editor) or Resources path + /purple.")]
+    public Texture2D[] demonFaceTexturesOverrideLeft;
+
+    [Tooltip("Optional: right-hand (blue team) faces for builds. If empty, uses Assets/demons/blue (Editor) or Resources path + /blue.")]
+    public Texture2D[] demonFaceTexturesOverrideRight;
+
+    [Tooltip("Legacy: if both side overrides and purple/blue folders are empty, these textures are used for BOTH sides (old behavior). Prefer demonFaceTexturesOverrideLeft/Right or Assets/demons/purple|blue.")]
+    public Texture2D[] demonFaceTexturesOverride;
+
+    [Tooltip("Resources base path (e.g. DemonFaces). Expect PNGs in subfolders purple/ and blue/ for left vs right notes. Full example: Resources/DemonFaces/purple/*.png")]
+    public string demonFaceResourcesPath = "DemonFaces";
+
+    [Header("Cube note visuals")]
+    [Tooltip("Turns off the built-in colored direction bar mesh on standard cube prefabs (child named 'Cube (8)').")]
+    public bool hideDirectionalArrowBar = true;
+
+    [Tooltip("Left-hand / red-map notes: cube body + demon-face backing + slice cross-section.")]
+    public Color leftNoteTeamColor = new Color(210f / 255f, 154f / 255f, 220f / 255f, 1f); // #d29adc
+
+    [Tooltip("Right-hand / blue-map notes: cube body + demon-face backing + slice cross-section.")]
+    public Color rightNoteTeamColor = new Color(138f / 255f, 209f / 255f, 242f / 255f, 1f); // #8ad1f2
+
+    [Range(0f, 1f)]
+    [Tooltip("How strongly to replace green / lime screen pixels on demon PNGs with team color (shader OpenSaber/DemonFaceComposite).")]
+    public float demonFaceGreenRemovalStrength = 0.9f;
+
     public GameObject Wall;
     public Transform[] SpawnPoints;
 
@@ -156,6 +186,10 @@ public class NotesSpawner : MonoBehaviour
 
     private GameObject _cachedResourcesDemonPrefab;
     private bool _loggedResourcesDemonLoadFailure;
+
+    private Texture2D[] _cachedDemonFaceTexturesLeft;
+    private Texture2D[] _cachedDemonFaceTexturesRight;
+    private bool _cachedDemonFaceTexturesTried;
 
     private SongSettings Songsettings;
     private SceneHandling SceneHandling;
@@ -361,6 +395,90 @@ public class NotesSpawner : MonoBehaviour
 
         SaberGameplayBootstrap.EnsureAfterGameplayLoad();
         EnsureStadiumBackdrop();
+        TeamNoteColors.Configure(leftNoteTeamColor, rightNoteTeamColor);
+        CacheDemonFaceTexturesIfNeeded();
+    }
+
+    /// <summary>Beat Saber–style cubes use a child mesh for the cut-direction bar (purple/blue strip).</summary>
+    static void TryHideDirectionalBarOnCubeNote(Transform root)
+    {
+        if (root == null)
+            return;
+        var bar = root.Find("Cube (8)");
+        if (bar != null)
+            bar.gameObject.SetActive(false);
+    }
+
+    static string CombineDemonFaceResourcesPath(string basePath, string subfolder)
+    {
+        if (string.IsNullOrWhiteSpace(subfolder))
+            return basePath;
+        if (string.IsNullOrWhiteSpace(basePath))
+            return subfolder;
+        return basePath.Trim().TrimEnd('/', '\\') + "/" + subfolder;
+    }
+
+    void CacheDemonFaceTexturesIfNeeded()
+    {
+        if (_cachedDemonFaceTexturesTried)
+            return;
+        _cachedDemonFaceTexturesTried = true;
+
+        if (demonFaceTexturesOverrideLeft != null && demonFaceTexturesOverrideLeft.Length > 0)
+            _cachedDemonFaceTexturesLeft = demonFaceTexturesOverrideLeft;
+        else if (!string.IsNullOrWhiteSpace(demonFaceResourcesPath))
+        {
+            string purpleRes = CombineDemonFaceResourcesPath(demonFaceResourcesPath, NoteDemonFaceOverlay.DemonsSubfolderPurple);
+            var fromResources = Resources.LoadAll<Texture2D>(purpleRes);
+            if (fromResources != null && fromResources.Length > 0)
+                _cachedDemonFaceTexturesLeft = fromResources;
+        }
+#if UNITY_EDITOR
+        if (_cachedDemonFaceTexturesLeft == null || _cachedDemonFaceTexturesLeft.Length == 0)
+            _cachedDemonFaceTexturesLeft = NoteDemonFaceOverlay.LoadTexturesFromAssetsDemonsSubfolderEditor(NoteDemonFaceOverlay.DemonsSubfolderPurple);
+#endif
+
+        if (demonFaceTexturesOverrideRight != null && demonFaceTexturesOverrideRight.Length > 0)
+            _cachedDemonFaceTexturesRight = demonFaceTexturesOverrideRight;
+        else if (!string.IsNullOrWhiteSpace(demonFaceResourcesPath))
+        {
+            string blueRes = CombineDemonFaceResourcesPath(demonFaceResourcesPath, NoteDemonFaceOverlay.DemonsSubfolderBlue);
+            var fromResources = Resources.LoadAll<Texture2D>(blueRes);
+            if (fromResources != null && fromResources.Length > 0)
+                _cachedDemonFaceTexturesRight = fromResources;
+        }
+#if UNITY_EDITOR
+        if (_cachedDemonFaceTexturesRight == null || _cachedDemonFaceTexturesRight.Length == 0)
+            _cachedDemonFaceTexturesRight = NoteDemonFaceOverlay.LoadTexturesFromAssetsDemonsSubfolderEditor(NoteDemonFaceOverlay.DemonsSubfolderBlue);
+#endif
+
+        bool leftOk = _cachedDemonFaceTexturesLeft != null && _cachedDemonFaceTexturesLeft.Length > 0;
+        bool rightOk = _cachedDemonFaceTexturesRight != null && _cachedDemonFaceTexturesRight.Length > 0;
+        if (!leftOk && !rightOk && demonFaceTexturesOverride != null && demonFaceTexturesOverride.Length > 0)
+        {
+            _cachedDemonFaceTexturesLeft = demonFaceTexturesOverride;
+            _cachedDemonFaceTexturesRight = demonFaceTexturesOverride;
+            Debug.LogWarning(
+                "[NotesSpawner] Demon faces: using legacy demonFaceTexturesOverride for both sides. " +
+                "Put PNGs in Assets/demons/purple (left) and Assets/demons/blue (right), or assign override arrays.");
+        }
+
+#if UNITY_EDITOR
+        leftOk = _cachedDemonFaceTexturesLeft != null && _cachedDemonFaceTexturesLeft.Length > 0;
+        rightOk = _cachedDemonFaceTexturesRight != null && _cachedDemonFaceTexturesRight.Length > 0;
+        if (!leftOk && !rightOk)
+        {
+            Texture2D[] flatRoot = NoteDemonFaceOverlay.LoadTexturesFromAssetsDemonsRootOnlyEditor();
+            if (flatRoot != null && flatRoot.Length > 0)
+            {
+                _cachedDemonFaceTexturesLeft = flatRoot;
+                _cachedDemonFaceTexturesRight = flatRoot;
+                Debug.LogWarning(
+                    "[NotesSpawner] No PNGs in Assets/demons/purple or Assets/demons/blue — using loose PNGs in Assets/demons/ for BOTH sides. " +
+                    "Move images into purple (left blocks) and blue (right blocks) for per-side random.");
+            }
+        }
+#endif
     }
 
     void EnsureStadiumBackdrop()
@@ -612,9 +730,16 @@ public class NotesSpawner : MonoBehaviour
 
             demon = Instantiate(prefabs[(int)note.Hand], SpawnPoints[point]);
             demon.transform.localPosition = Vector3.zero;
+            if (hideDirectionalArrowBar)
+                TryHideDirectionalBarOnCubeNote(demon.transform);
         }
 
         ApplyNoteHitLayers(demon, saberSideForColor);
+
+        if (!spawnedDemonModel)
+            TeamNoteColors.ApplyTintToRootCubeBody(demon, TeamNoteColors.Get(saberSideForColor == 0));
+
+        Quaternion rotationBeforeCut = demon.transform.rotation;
 
         // Cube prefabs use this roll so the on-block arrow matches cut direction. The demon mesh is not an
         // arrow block — the same roll flips some cuts (e.g. BOTTOM = 180°) and looks upside-down.
@@ -680,6 +805,23 @@ public class NotesSpawner : MonoBehaviour
 
         var spawnCut = demon.AddComponent<SpawnedNoteCutDirection>();
         spawnCut.CutDirection = note.CutDirection;
+
+        if (showRandomDemonFaces && !spawnedDemonModel)
+        {
+            CacheDemonFaceTexturesIfNeeded();
+            Texture2D[] facePool = saberSideForColor == 0 ? _cachedDemonFaceTexturesLeft : _cachedDemonFaceTexturesRight;
+            if (facePool != null && facePool.Length > 0)
+            {
+                Texture2D faceTex = facePool[UnityEngine.Random.Range(0, facePool.Length)];
+                int hitLayer = saberSideForColor == 0
+                    ? LayerMask.NameToLayer("RedLayer")
+                    : LayerMask.NameToLayer("BlueLayer");
+                if (hitLayer < 0)
+                    hitLayer = demon.layer;
+                Color teamBg = TeamNoteColors.Get(saberSideForColor == 0);
+                NoteDemonFaceOverlay.TryAttach(demon.transform, faceTex, hitLayer, rotationBeforeCut, teamBg, demonFaceGreenRemovalStrength);
+            }
+        }
     }
 
     bool TryInstantiateDemonNoteModel(int spawnPointIndex, out GameObject demon)

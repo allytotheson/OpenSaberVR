@@ -241,9 +241,13 @@ public static class DirectedSliceHitEffects
                 c.enabled = false;
         }
 
+        var side = go.GetComponent<SpawnedNoteSaberSide>();
+        bool isLeftNote = side != null && side.isLeftHandSaber;
+
         if (slicer != null)
         {
-            GameObject[] cutted = slicer.SliceObject(go);
+            Material crossMat = TeamNoteColors.GetSliceCrossSectionMaterial(isLeftNote);
+            GameObject[] cutted = slicer.SliceObject(go, crossMat);
             if (cutted != null && cutted.Length > 0)
             {
                 var debris   = Object.Instantiate(go);
@@ -275,14 +279,19 @@ public static class DirectedSliceHitEffects
             }
         }
 
-        Vector3 velForFx = tipVelocityWorld.sqrMagnitude > 1e-6f ? tipVelocityWorld : Vector3.up * 1.5f;
-        DirectedSliceWorldFx.Play(fxCenter, velForFx);
-
+        int pts = 0;
+        bool perfectFx = false;
         if (scoreManager != null)
         {
-            int pts = scoreManager.RegisterDirectedHit(accuracyPoints);
-            HitMissFlyout.ShowPointGain(pts);
+            pts = scoreManager.RegisterDirectedHit(accuracyPoints);
+            perfectFx = pts > HitMissFlyout.PointGainPerfectThreshold;
         }
+
+        Vector3 velForFx = tipVelocityWorld.sqrMagnitude > 1e-6f ? tipVelocityWorld : Vector3.up * 1.5f;
+        DirectedSliceWorldFx.Play(fxCenter, velForFx, TeamNoteColors.Get(isLeftNote), perfectFx);
+
+        if (scoreManager != null)
+            HitMissFlyout.ShowPointGain(pts, isLeftNote);
 
         if (vrHaptics != null)
             vrHaptics.TriggerHitHaptic();

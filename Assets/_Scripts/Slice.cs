@@ -12,7 +12,15 @@ public class Slice : MonoBehaviour
 
     public GameObject[] SliceObject(GameObject obj, Material crossSectionMaterial = null)
     {
-        return obj.SliceInstantiate(transform.position, transform.up, mat);
+        Material use = crossSectionMaterial != null ? crossSectionMaterial : mat;
+        if (use == null)
+        {
+            var r = GetComponent<Renderer>();
+            if (r != null)
+                use = r.sharedMaterial;
+        }
+
+        return obj.SliceInstantiate(transform.position, transform.up, use);
     }
 
 #if UNITY_EDITOR
