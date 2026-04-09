@@ -17,8 +17,8 @@ public sealed class DirectedDesktopSliceInput : MonoBehaviour
     public float sliceCooldown = 0.3f;
 
     [Header("Note hit window")]
-    [Tooltip("Max |signed distance| from the hit plane for a note to be hittable (meters).")]
-    public float maxPlaneDistanceMeters = 0.66f;
+    [Tooltip("Max |signed distance| from the hit plane for a note to be hittable (meters). Include early window (~4 m ≈ 0.5 s at 8 m/s).")]
+    public float maxPlaneDistanceMeters = 4.6f;
 
     [Tooltip("Max distance from the gameplay camera to the note (meters).")]
     public float maxDistanceFromPlayerMeters = 4.5f;
@@ -101,7 +101,8 @@ public sealed class DirectedDesktopSliceInput : MonoBehaviour
 #endif
     }
 
-    void TrySlice(bool leftHand)
+    /// <param name="notifyDesktopSlashFx">If false, skip comma/keyboard slash events (use when <see cref="SwingDetector"/> already fired <see cref="SwingDetector.SwingStarted"/> for trail).</param>
+    public void TrySlice(bool leftHand, bool notifyDesktopSlashFx = true)
     {
         if (!DesktopSaberTestInput.TryResolveSabers(out GameObject leftRoot, out GameObject rightRoot))
             return;
@@ -111,10 +112,13 @@ public sealed class DirectedDesktopSliceInput : MonoBehaviour
             return;
 
         DesktopSaberTestInput.PulseSaberHand(hand, keyboardSlashPulseSeconds);
-        if (leftHand)
-            DesktopSaberTestInput.NotifyLeftKeyboardSlashPressed();
-        else
-            DesktopSaberTestInput.NotifyRightKeyboardSlashPressed();
+        if (notifyDesktopSlashFx)
+        {
+            if (leftHand)
+                DesktopSaberTestInput.NotifyLeftKeyboardSlashPressed();
+            else
+                DesktopSaberTestInput.NotifyRightKeyboardSlashPressed();
+        }
 
         DemonHandling bestDh   = null;
         float         bestAbs  = float.MaxValue;
@@ -175,6 +179,9 @@ public sealed class DirectedDesktopSliceInput : MonoBehaviour
     }
 
     // ---- Public simulation methods (editor / unit tests) ----
+
+    /// <summary>Same as a key slice but without duplicate slash VFX when <see cref="SwingDetector.SwingStarted"/> already drove the trail.</summary>
+    public void TrySliceFromMotionSwing(bool leftHand) => TrySlice(leftHand, false);
 
     /// <summary>Simulate a left-hand slice (e.g. from external test harness).</summary>
     public void SimHardwareLeft()  => TrySlice(true);
@@ -252,8 +259,10 @@ public static class DirectedSliceHitEffects
         }
 
         if (scoreManager != null)
-            scoreManager.RegisterDirectedHit(accuracyPoints);
-        HitMissFlyout.Show($"+{accuracyPoints}", new Color(0.35f, 1f, 0.55f, 1f));
+        {
+            int pts = scoreManager.RegisterDirectedHit(accuracyPoints);
+            HitMissFlyout.ShowPointGain(pts);
+        }
 
         if (vrHaptics != null)
             vrHaptics.TriggerHitHaptic();

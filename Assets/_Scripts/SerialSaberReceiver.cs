@@ -89,14 +89,17 @@ public class SerialSaberReceiver : MonoBehaviour, IImuSaberReceiver
             {
                 NewLine = "\n",
                 ReadTimeout = 50,
-                WriteTimeout = 200
+                WriteTimeout = 200,
+                DtrEnable = true,
+                RtsEnable = true
             };
             port.Open();
+            try { port.DiscardInBuffer(); } catch { }
             // Local copy: lambdas cannot capture ref/out parameters (CS1628).
             SerialPort serialForRead = port;
-            thread = new Thread(() => ReadLoop(serialForRead, lockObj, setPacket)) { IsBackground = true };
+            thread = new Thread(() => ReadLoop(serialForRead, lockObj, setPacket, label)) { IsBackground = true };
             thread.Start();
-            Debug.Log($"[SerialSaberReceiver] {label} saber on {portName} @ {baudRate}");
+            Debug.Log($"[SerialSaberReceiver] {label} saber on {portName} @ {baudRate} (DTR+RTS enabled)");
         }
         catch (Exception e)
         {
@@ -135,28 +138,57 @@ public class SerialSaberReceiver : MonoBehaviour, IImuSaberReceiver
         return false;
     }
 
-    static void ReadLoop(SerialPort serial, object lockObj, Action<UDPSaberReceiver.IMUPacket> setPacket)
+    static void ReadLoop(SerialPort serial, object lockObj,
+        Action<UDPSaberReceiver.IMUPacket> setPacket, string handLabel)
     {
+        int parseFailures = 0;
+        bool loggedFirstValid = false;
+
         while (serial != null && serial.IsOpen)
         {
             try
             {
                 string line = serial.ReadLine();
                 var p = UDPSaberReceiver.ParsePacket(line);
-                lock (lockObj) { setPacket(p); }
+
+                if (p.valid)
+                {
+                    parseFailures = 0;
+                    lock (lockObj) { setPacket(p); }
+                    if (!loggedFirstValid)
+                    {
+                        loggedFirstValid = true;
+                        Debug.Log($"[SerialSaberReceiver] {handLabel}: first valid packet received. " +
+                                  $"gyro=({p.angularVelocity.x:F1},{p.angularVelocity.y:F1},{p.angularVelocity.z:F1})");
+                    }
+                }
+                else
+                {
+                    parseFailures++;
+                    if (parseFailures % ParseFailureLogInterval == 1)
+                    {
+                        string snippet = line != null && line.Length > 80
+                            ? line.Substring(0, 80) + "…" : (line ?? "(null)");
+                        Debug.LogWarning($"[SerialSaberReceiver] {handLabel} parse fail #{parseFailures}: \"{snippet}\"");
+                    }
+                }
             }
             catch (TimeoutException) { }
             catch (InvalidOperationException) { break; }
             catch (UnauthorizedAccessException) { break; }
             catch (ThreadInterruptedException) { break; }
+            catch (System.IO.IOException) { break; }
             catch (Exception ex)
             {
                 if (serial == null || !serial.IsOpen)
                     break;
-                Debug.LogWarning($"[SerialSaberReceiver] Read error: {ex.Message}");
+                Debug.LogWarning($"[SerialSaberReceiver] {handLabel} read error: {ex.Message}");
             }
         }
+        Debug.Log($"[SerialSaberReceiver] {handLabel}: ReadLoop exited (port open={serial?.IsOpen ?? false}).");
     }
+
+    private const int ParseFailureLogInterval = 20;
 
     void OnDestroy()
     {

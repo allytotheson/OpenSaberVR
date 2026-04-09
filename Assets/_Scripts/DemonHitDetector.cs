@@ -30,6 +30,9 @@ public class DemonHitDetector : MonoBehaviour
     [Tooltip("Leading AABB corner (toward player) signed distance must be ≤ this vs the hit plane. 0 = at plane; small positive = a few cm before.")]
     public float hitLeadingMaxSigned = 0f;
 
+    [Tooltip("Extra meters up-track (positive signed distance) before the plane where a cut can still register. At ~8 m/s note speed, 4 m ≈ 0.5 s earlier.")]
+    public float hitPlaneEarlyExtraMeters = 4f;
+
     [Tooltip("During Z/X keyboard pulse, use this leading cap instead (more lenient).")]
     public float hitLeadingMaxSignedDuringPulse = 0.12f;
 
@@ -291,9 +294,10 @@ public class DemonHitDetector : MonoBehaviour
             ? hitPlaneDepthHalfWindowPulseScale * Mathf.Max(1f, keyboardPulseDepthWindowExtraMul)
             : 1f;
         float halfW = hitPlaneDepthHalfWindow * pulseScale;
+        float early = hitPlaneEarlyExtraMeters;
         float leadCap = keyboardPulse
-            ? Mathf.Max(hitLeadingMaxSignedDuringPulse, 0.28f)
-            : hitLeadingMaxSigned;
+            ? Mathf.Max(hitLeadingMaxSignedDuringPulse, early, 0.28f)
+            : Mathf.Max(hitLeadingMaxSigned, early);
 
         var dh = demonTransform.GetComponentInParent<DemonHandling>();
         var root = dh != null ? dh.transform : demonTransform;
@@ -311,19 +315,19 @@ public class DemonHitDetector : MonoBehaviour
         {
             float s = BeatSaberHitLineGuide.SignedDistanceToGameplayHitPlane(DemonSampleWorldPoint(demonTransform));
             absSignedDistanceToPlane = Mathf.Abs(s);
-            return NoteIntersectsHitSlabScalar(s, halfW, leadCap, motionDotN);
+            return NoteIntersectsHitSlabScalar(s, halfW, leadCap, motionDotN, early);
         }
 
         absSignedDistanceToPlane = Mathf.Min(Mathf.Abs(minS), Mathf.Abs(maxS));
-        return NoteIntersectsHitSlabBounds(minS, maxS, halfW, leadCap, motionDotN);
+        return NoteIntersectsHitSlabBounds(minS, maxS, halfW, leadCap, motionDotN, early);
     }
 
     /// <summary>
     /// Signed interval [minS,maxS] along plane normal n; motionDotN = dot(note travel dir, n). Travel is -demon.forward.
     /// </summary>
-    static bool NoteIntersectsHitSlabBounds(float minS, float maxS, float halfW, float leadCap, float motionDotN)
+    static bool NoteIntersectsHitSlabBounds(float minS, float maxS, float halfW, float leadCap, float motionDotN, float earlyExtra)
     {
-        if (minS > halfW || maxS < -halfW)
+        if (minS > halfW + earlyExtra || maxS < -halfW)
             return false;
 
         if (Mathf.Abs(motionDotN) < 0.12f)
@@ -347,9 +351,9 @@ public class DemonHitDetector : MonoBehaviour
         return true;
     }
 
-    static bool NoteIntersectsHitSlabScalar(float s, float halfW, float leadCap, float motionDotN)
+    static bool NoteIntersectsHitSlabScalar(float s, float halfW, float leadCap, float motionDotN, float earlyExtra)
     {
-        if (s > halfW || s < -halfW)
+        if (s > halfW + earlyExtra || s < -halfW)
             return false;
         if (Mathf.Abs(motionDotN) < 0.12f)
             return true;
@@ -424,8 +428,10 @@ public class DemonHitDetector : MonoBehaviour
         }
 
         if (scoreManager != null)
-            scoreManager.RegisterHit();
-        HitMissFlyout.ShowHit();
+        {
+            int pts = scoreManager.RegisterHit();
+            HitMissFlyout.ShowPointGain(pts);
+        }
 
         if (vrHaptics != null)
             vrHaptics.TriggerHitHaptic();

@@ -238,6 +238,14 @@ public class ImuSaberInputProvider : MonoBehaviour, ISaberInputProvider
             }
         }
 
+        // During startup calibration, suppress reported velocity so SwingDetector
+        // doesn't see the initial position/rotation jump as a swing.
+        if (!_startupCalDone)
+        {
+            _angularVelocity = Vector3.zero;
+            _previousPosition = _currentPosition;
+        }
+
         saberTransform.SetPositionAndRotation(_currentPosition, _currentRotation);
     }
 

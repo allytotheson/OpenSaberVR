@@ -1,0 +1,7 @@
+<linker>
+  <!-- Preserve System.IO.Ports so SerialSaberReceiver works in standalone builds.
+       With .NET 4.x API compatibility, SerialPort lives in System.dll (Mono BCL).
+       This prevents the managed linker from stripping it. -->
+  <assembly fullname="System" preserve="all"/>
+  <assembly fullname="mscorlib" preserve="all"/>
+</linker>

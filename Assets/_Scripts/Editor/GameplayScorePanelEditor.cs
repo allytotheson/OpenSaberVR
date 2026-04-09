@@ -11,9 +11,13 @@ public sealed class GameplayScorePanelEditor : Editor
         if (panel.IsSceneAuthored)
         {
             EditorGUILayout.HelpBox(
-                "Move this HUD in the Scene or Game view using this object’s Rect Transform: Anchored Position (and anchors). " +
-                "The parent GameplayScoreHud canvas root is full-screen for Screen Space — Overlay; Unity often shows its Rect Transform as driven or with odd scale. " +
-                "Do not try to position the HUD from the parent — use ScorePanel (this object) instead.",
+                "This component lives on the GameplayScoreHud root canvas.\n\n" +
+                "The root canvas Rect Transform is ALWAYS locked by Unity (\"Some values driven by Canvas\") " +
+                "for Screen Space – Overlay — this is normal and expected.\n\n" +
+                "To reposition the HUD panels:\n" +
+                "  • Expand GameplayScoreHud in the Hierarchy\n" +
+                "  • Select LeftPanel  → adjust Anchored Position X / Y\n" +
+                "  • Select RightPanel → adjust Anchored Position X / Y",
                 MessageType.Info);
         }
 

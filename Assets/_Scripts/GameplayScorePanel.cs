@@ -3,27 +3,32 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
-/// In-game score readout: multiplier + total score (left), consecutive hits (right), on a frosted panel.
+/// Two portrait panels: LeftPanel (combo streak + score) and RightPanel (multiplier ×N).
+/// In the scene: select <b>LeftPanel</b> or <b>RightPanel</b> under GameplayScoreHud to move them.
+/// The GameplayScoreHud root is a Screen Space – Overlay canvas whose Rect Transform is always
+/// driven by Unity and cannot be repositioned — move the child panels instead.
 /// </summary>
 [DisallowMultipleComponent]
 public sealed class GameplayScorePanel : MonoBehaviour
 {
-    [Header("Scene UI (assign in editor on OpenSaber — leave empty for auto-generated HUD on DDOL canvas)")]
+    [Header("Scene Texts — wired by the OpenSaber menu, do not edit manually")]
     [SerializeField] Text _sceneMultiplierText;
     [SerializeField] Text _sceneScoreText;
     [SerializeField] Text _sceneStreakValueText;
-    [Tooltip("Optional; if unset, uses CanvasGroup on this object.")]
     [SerializeField] CanvasGroup _sceneCanvasGroup;
 
-    /// <summary>True when multiplier/score/streak texts are wired in the scene (see OpenSaber editor menu).</summary>
+    /// <summary>True when all three text references are assigned (scene-authored via the menu).</summary>
     public bool IsSceneAuthored =>
         _sceneMultiplierText != null && _sceneScoreText != null && _sceneStreakValueText != null;
 
-    const float PanelWidth = 520f;
-    const float PanelHeight = 132f;
-    /// <summary>Offset from screen center (reference resolution): positive = upward, keeps HUD in upper-middle.</summary>
-    const float AnchoredOffsetFromCenterY = 140f;
-    const float CornerRadiusPx = 22f;
+    // Runtime-build layout constants (only used by Build() — not by scene-authored path)
+    const float LeftW     = 200f;
+    const float LeftH     = 300f;
+    const float RightW    = 160f;
+    const float RightH    = 260f;
+    const float EdgeX     = 44f;
+    const float DefaultY  = -200f;  // px below screen centre (1080 ref) — about 67 % down
+    const float CornerR   = 18f;
 
     Text _multiplierText;
     Text _scoreText;
@@ -31,7 +36,9 @@ public sealed class GameplayScorePanel : MonoBehaviour
     CanvasGroup _canvasGroup;
     int _lastScore = int.MinValue;
     int _lastCombo = int.MinValue;
-    int _lastTier = int.MinValue;
+    int _lastTier  = int.MinValue;
+
+    // ─── Static factory helpers ────────────────────────────────────────────────
 
     public static void EnsureOnCanvas(Transform canvasTransform, Font font)
     {
@@ -41,7 +48,6 @@ public sealed class GameplayScorePanel : MonoBehaviour
             return;
         if (canvasTransform.GetComponentInChildren<GameplayScorePanel>(true) != null)
             return;
-        // UI roots must have RectTransform; plain GameObject only has Transform.
         var host = new GameObject(nameof(GameplayScorePanel), typeof(RectTransform));
         host.transform.SetParent(canvasTransform, false);
         var panel = host.AddComponent<GameplayScorePanel>();
@@ -49,8 +55,8 @@ public sealed class GameplayScorePanel : MonoBehaviour
     }
 
     /// <summary>
-    /// Ensures the score panel exists on the gameplay overlay canvas. Call after <see cref="GameplayDebugHud.EnsureCreated"/>
-    /// so older DDOL HUD instances (created before the score UI existed) still get a panel.
+    /// Ensures the panel exists on the DDOL gameplay canvas.
+    /// Skipped when a scene-authored panel is present.
     /// </summary>
     public static void EnsureOnAnyGameplayHud(Font font = null)
     {
@@ -67,7 +73,7 @@ public sealed class GameplayScorePanel : MonoBehaviour
         EnsureOnCanvas(canvas.transform, font);
     }
 
-    /// <summary>True when the <c>OpenSaber</c> scene is loaded and contains a scene-wired score panel.</summary>
+    /// <summary>True when the OpenSaber scene is loaded and contains a scene-wired panel.</summary>
     public static bool OpenSaberHasSceneAuthoredPanel()
     {
         var openSaber = SceneManager.GetSceneByName("OpenSaber");
@@ -81,146 +87,61 @@ public sealed class GameplayScorePanel : MonoBehaviour
                     return true;
             }
         }
-
         return false;
     }
+
+    // ─── Lifecycle ─────────────────────────────────────────────────────────────
 
     void Awake()
     {
         if (!IsSceneAuthored)
             return;
-        _multiplierText = _sceneMultiplierText;
-        _scoreText = _sceneScoreText;
+        _multiplierText  = _sceneMultiplierText;
+        _scoreText       = _sceneScoreText;
         _streakValueText = _sceneStreakValueText;
-        _canvasGroup = _sceneCanvasGroup != null
+        _canvasGroup     = _sceneCanvasGroup != null
             ? _sceneCanvasGroup
             : GetComponent<CanvasGroup>() ?? gameObject.AddComponent<CanvasGroup>();
         _canvasGroup.blocksRaycasts = false;
-        _canvasGroup.interactable = false;
-        _multiplierText.text = "1×";
-        _scoreText.text = "0";
+        _canvasGroup.interactable  = false;
+        _multiplierText.text  = "×1";
+        _scoreText.text       = "0";
         _streakValueText.text = "0";
         _lastScore = _lastCombo = _lastTier = int.MinValue;
+
+        StripTextGlow(_sceneMultiplierText);
+        StripTextGlow(_sceneScoreText);
+        StripTextGlow(_sceneStreakValueText);
     }
 
-    void Build(Font font)
+    static void StripTextGlow(Text t)
     {
-        _canvasGroup = gameObject.AddComponent<CanvasGroup>();
-        _canvasGroup.blocksRaycasts = false;
-        _canvasGroup.interactable = false;
-
-        var root = gameObject.GetComponent<RectTransform>();
-        root.anchorMin = new Vector2(0.5f, 0.5f);
-        root.anchorMax = new Vector2(0.5f, 0.5f);
-        root.pivot = new Vector2(0.5f, 0.5f);
-        root.anchoredPosition = new Vector2(0f, AnchoredOffsetFromCenterY);
-        root.sizeDelta = new Vector2(PanelWidth, PanelHeight);
-
-        var bgGo = new GameObject("Background");
-        bgGo.transform.SetParent(transform, false);
-        var bgRt = bgGo.AddComponent<RectTransform>();
-        bgRt.anchorMin = Vector2.zero;
-        bgRt.anchorMax = Vector2.one;
-        bgRt.offsetMin = Vector2.zero;
-        bgRt.offsetMax = Vector2.zero;
-        var bg = bgGo.AddComponent<Image>();
-        bg.sprite = RoundedRectSpriteUtility.CreateRoundedRectSprite(
-            Mathf.RoundToInt(PanelWidth),
-            Mathf.RoundToInt(PanelHeight),
-            CornerRadiusPx,
-            new Color(1f, 1f, 1f, 0.22f));
-        bg.type = Image.Type.Simple;
-        bg.raycastTarget = false;
-
-        var borderGo = new GameObject("Border");
-        borderGo.transform.SetParent(transform, false);
-        var borderRt = borderGo.AddComponent<RectTransform>();
-        borderRt.anchorMin = Vector2.zero;
-        borderRt.anchorMax = Vector2.one;
-        borderRt.offsetMin = new Vector2(-2f, -2f);
-        borderRt.offsetMax = new Vector2(2f, 2f);
-        var borderImg = borderGo.AddComponent<Image>();
-        borderImg.sprite = RoundedRectSpriteUtility.CreateRoundedRectSprite(
-            Mathf.RoundToInt(PanelWidth + 4f),
-            Mathf.RoundToInt(PanelHeight + 4f),
-            CornerRadiusPx + 2f,
-            new Color(1f, 1f, 1f, 0.45f));
-        borderImg.type = Image.Type.Simple;
-        borderImg.raycastTarget = false;
-        borderGo.transform.SetAsFirstSibling();
-
-        _multiplierText = CreateGlowText(transform, "MultiplierText", font, 40, FontStyle.Bold,
-            TextAnchor.UpperLeft, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -14f), new Vector2(200f, 48f));
-
-        _scoreText = CreateGlowText(transform, "ScoreText", font, 34, FontStyle.Bold,
-            TextAnchor.UpperLeft, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -58f), new Vector2(260f, 44f));
-
-        CreateGlowText(transform, "StreakLabel", font, 18, FontStyle.Normal,
-            TextAnchor.UpperRight, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-20f, -16f), new Vector2(200f, 28f)).text = "IN A ROW";
-
-        _streakValueText = CreateGlowText(transform, "StreakValue", font, 44, FontStyle.Bold,
-            TextAnchor.MiddleRight, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-20f, 0f), new Vector2(200f, 56f));
-
-        _multiplierText.text = "1×";
-        _scoreText.text = "0";
-        _streakValueText.text = "0";
-        _lastScore = _lastCombo = _lastTier = int.MinValue;
-    }
-
-    static Text CreateGlowText(Transform parent, string name, Font font, int size, FontStyle style,
-        TextAnchor alignment, Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot, Vector2 anchoredPos, Vector2 sizeDelta)
-    {
-        var go = new GameObject(name);
-        go.transform.SetParent(parent, false);
-        var rt = go.AddComponent<RectTransform>();
-        rt.anchorMin = anchorMin;
-        rt.anchorMax = anchorMax;
-        rt.pivot = pivot;
-        rt.anchoredPosition = anchoredPos;
-        rt.sizeDelta = sizeDelta;
-
-        var t = go.AddComponent<Text>();
-        if (font != null)
-            t.font = font;
-        else
-            t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        t.fontSize = size;
-        t.fontStyle = style;
-        t.supportRichText = false;
-        t.alignment = alignment;
-        t.color = Color.white;
-        t.raycastTarget = false;
-        t.horizontalOverflow = HorizontalWrapMode.Overflow;
-        t.verticalOverflow = VerticalWrapMode.Overflow;
-
-        var outline = go.AddComponent<Outline>();
-        outline.effectColor = new Color(1f, 1f, 1f, 0.92f);
-        outline.effectDistance = new Vector2(2.2f, -2.2f);
-
-        var shadow = go.AddComponent<Shadow>();
-        shadow.effectColor = new Color(1f, 1f, 1f, 0.5f);
-        shadow.effectDistance = new Vector2(5f, -5f);
-
-        return t;
+        if (t == null)
+            return;
+        var o = t.GetComponent<Outline>();
+        if (o != null)
+            Destroy(o);
+        var s = t.GetComponent<Shadow>();
+        if (s != null)
+            Destroy(s);
     }
 
     void LateUpdate()
     {
+        // Hide DDOL copy if a scene-authored panel is active
         if (!IsSceneAuthored && OpenSaberHasSceneAuthoredPanel())
         {
-            if (_canvasGroup != null)
-                _canvasGroup.alpha = 0f;
+            if (_canvasGroup != null) _canvasGroup.alpha = 0f;
             return;
         }
 
-        var openSaber = SceneManager.GetSceneByName("OpenSaber");
+        var openSaber  = SceneManager.GetSceneByName("OpenSaber");
         bool inGameplay = openSaber.IsValid() && openSaber.isLoaded;
         if (_canvasGroup != null)
             _canvasGroup.alpha = inGameplay ? 1f : 0f;
 
         if (!inGameplay)
             return;
-
         if (_multiplierText == null || _scoreText == null || _streakValueText == null)
             return;
 
@@ -230,23 +151,167 @@ public sealed class GameplayScorePanel : MonoBehaviour
 
         int score = sm.Score;
         int combo = sm.ComboStreak;
-        int tier = sm.ScoreMultiplierTier;
+        int tier  = sm.ScoreMultiplierTier;
         if (score == _lastScore && combo == _lastCombo && tier == _lastTier)
             return;
         _lastScore = score;
         _lastCombo = combo;
-        _lastTier = tier;
+        _lastTier  = tier;
 
-        _multiplierText.text = FormatMultiplierLabel(tier);
-        _scoreText.text = score.ToString("N0");
+        _multiplierText.text  = "×" + tier;
+        _scoreText.text       = score.ToString("N0");
         _streakValueText.text = combo.ToString("N0");
     }
 
-    static string FormatMultiplierLabel(int tier)
+    // ─── Runtime layout (DDOL auto-build) ─────────────────────────────────────
+
+    void Build(Font font)
     {
-        if (tier <= 1)
-            return "1×";
-        return tier + "×";
+        _canvasGroup = gameObject.AddComponent<CanvasGroup>();
+        _canvasGroup.blocksRaycasts = false;
+        _canvasGroup.interactable  = false;
+
+        // Stretch host to fill canvas so children can anchor to screen edges
+        var host = gameObject.GetComponent<RectTransform>();
+        host.anchorMin = Vector2.zero;
+        host.anchorMax = Vector2.one;
+        host.offsetMin = Vector2.zero;
+        host.offsetMax = Vector2.zero;
+        host.localScale = Vector3.one;
+
+        // Left panel — combo + score
+        var leftGo = new GameObject("LeftPanel", typeof(RectTransform));
+        leftGo.transform.SetParent(transform, false);
+        var leftRt = leftGo.GetComponent<RectTransform>();
+        leftRt.anchorMin       = new Vector2(0f, 0.5f);
+        leftRt.anchorMax       = new Vector2(0f, 0.5f);
+        leftRt.pivot           = new Vector2(0f, 0.5f);
+        leftRt.sizeDelta       = new Vector2(LeftW, LeftH);
+        leftRt.anchoredPosition = new Vector2(EdgeX, DefaultY);
+        BuildBackground(leftGo.transform, LeftW, LeftH);
+        BuildLeftContent(leftGo.transform, font);
+
+        // Right panel — multiplier
+        var rightGo = new GameObject("RightPanel", typeof(RectTransform));
+        rightGo.transform.SetParent(transform, false);
+        var rightRt = rightGo.GetComponent<RectTransform>();
+        rightRt.anchorMin       = new Vector2(1f, 0.5f);
+        rightRt.anchorMax       = new Vector2(1f, 0.5f);
+        rightRt.pivot           = new Vector2(1f, 0.5f);
+        rightRt.sizeDelta       = new Vector2(RightW, RightH);
+        rightRt.anchoredPosition = new Vector2(-EdgeX, DefaultY);
+        BuildBackground(rightGo.transform, RightW, RightH);
+        BuildRightContent(rightGo.transform, font);
+
+        _multiplierText.text  = "×1";
+        _scoreText.text       = "0";
+        _streakValueText.text = "0";
+        _lastScore = _lastCombo = _lastTier = int.MinValue;
+    }
+
+    void BuildBackground(Transform parent, float w, float h)
+    {
+        var borderGo  = new GameObject("Border");
+        borderGo.transform.SetParent(parent, false);
+        var borderRt  = borderGo.AddComponent<RectTransform>();
+        borderRt.anchorMin = Vector2.zero;
+        borderRt.anchorMax = Vector2.one;
+        borderRt.offsetMin = new Vector2(-2f, -2f);
+        borderRt.offsetMax = new Vector2( 2f,  2f);
+        var borderImg = borderGo.AddComponent<Image>();
+        borderImg.sprite       = RoundedRectSpriteUtility.CreateRoundedRectSprite(
+            Mathf.RoundToInt(w + 4f), Mathf.RoundToInt(h + 4f), CornerR + 2f,
+            new Color(1f, 1f, 1f, 0.45f));
+        borderImg.type         = Image.Type.Simple;
+        borderImg.raycastTarget = false;
+        borderGo.transform.SetAsFirstSibling();
+
+        var bgGo  = new GameObject("Background");
+        bgGo.transform.SetParent(parent, false);
+        var bgRt  = bgGo.AddComponent<RectTransform>();
+        bgRt.anchorMin = Vector2.zero;
+        bgRt.anchorMax = Vector2.one;
+        bgRt.offsetMin = Vector2.zero;
+        bgRt.offsetMax = Vector2.zero;
+        var bgImg = bgGo.AddComponent<Image>();
+        bgImg.sprite       = RoundedRectSpriteUtility.CreateRoundedRectSprite(
+            Mathf.RoundToInt(w), Mathf.RoundToInt(h), CornerR,
+            new Color(1f, 1f, 1f, 0.18f));
+        bgImg.type         = Image.Type.Simple;
+        bgImg.raycastTarget = false;
+        bgGo.transform.SetSiblingIndex(1);
+    }
+
+    void BuildLeftContent(Transform parent, Font font)
+    {
+        CreateHudText(parent, "ComboLabel", font, 16, FontStyle.Normal,
+            TextAnchor.UpperCenter,
+            new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+            new Vector2(0f, -14f), new Vector2(180f, 26f)).text = "COMBO";
+
+        CreateDivider(parent, new Vector2(0f, -46f));
+
+        _streakValueText = CreateHudText(parent, "StreakValue", font, 68, FontStyle.Bold,
+            TextAnchor.MiddleCenter,
+            new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+            new Vector2(0f, -54f), new Vector2(180f, 90f));
+
+        CreateDivider(parent, new Vector2(0f, -150f));
+
+        _scoreText = CreateHudText(parent, "ScoreText", font, 30, FontStyle.Bold,
+            TextAnchor.MiddleCenter,
+            new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+            new Vector2(0f, -162f), new Vector2(180f, 44f));
+    }
+
+    void BuildRightContent(Transform parent, Font font)
+    {
+        _multiplierText = CreateHudText(parent, "MultiplierText", font, 64, FontStyle.Bold,
+            TextAnchor.MiddleCenter,
+            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+            Vector2.zero, new Vector2(140f, 90f));
+    }
+
+    static void CreateDivider(Transform parent, Vector2 anchoredPos)
+    {
+        var go  = new GameObject("Divider");
+        go.transform.SetParent(parent, false);
+        var rt  = go.AddComponent<RectTransform>();
+        rt.anchorMin       = new Vector2(0.5f, 1f);
+        rt.anchorMax       = new Vector2(0.5f, 1f);
+        rt.pivot           = new Vector2(0.5f, 1f);
+        rt.anchoredPosition = anchoredPos;
+        rt.sizeDelta       = new Vector2(160f, 2f);
+        var img = go.AddComponent<Image>();
+        img.color          = new Color(1f, 1f, 1f, 0.5f);
+        img.raycastTarget  = false;
+    }
+
+    static Text CreateHudText(Transform parent, string name, Font font, int size, FontStyle style,
+        TextAnchor alignment, Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot,
+        Vector2 anchoredPos, Vector2 sizeDelta)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        var rt = go.AddComponent<RectTransform>();
+        rt.anchorMin       = anchorMin;
+        rt.anchorMax       = anchorMax;
+        rt.pivot           = pivot;
+        rt.anchoredPosition = anchoredPos;
+        rt.sizeDelta       = sizeDelta;
+
+        var t = go.AddComponent<Text>();
+        t.font             = font != null ? font : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        t.fontSize         = size;
+        t.fontStyle        = style;
+        t.supportRichText  = false;
+        t.alignment        = alignment;
+        t.color            = Color.white;
+        t.raycastTarget    = false;
+        t.horizontalOverflow = HorizontalWrapMode.Overflow;
+        t.verticalOverflow   = VerticalWrapMode.Overflow;
+
+        return t;
     }
 }
 
@@ -255,31 +320,24 @@ public static class RoundedRectSpriteUtility
 {
     public static Sprite CreateRoundedRectSprite(int width, int height, float radiusPx, Color fill)
     {
-        width = Mathf.Max(8, width);
+        width  = Mathf.Max(8, width);
         height = Mathf.Max(8, height);
         float r = Mathf.Min(radiusPx, Mathf.Min(width, height) * 0.5f - 1f);
         r = Mathf.Max(2f, r);
 
         var tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
-        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.wrapMode   = TextureWrapMode.Clamp;
         tex.filterMode = FilterMode.Bilinear;
         var clear = Color.clear;
         for (int y = 0; y < height; y++)
-        {
             for (int x = 0; x < width; x++)
                 tex.SetPixel(x, y, clear);
-        }
 
-        float w = width;
-        float h = height;
+        float w = width, h = height;
         for (int y = 0; y < height; y++)
-        {
             for (int x = 0; x < width; x++)
-            {
                 if (InsideRoundedRect(x + 0.5f, y + 0.5f, w, h, r))
                     tex.SetPixel(x, y, fill);
-            }
-        }
 
         tex.Apply(false, true);
         return Sprite.Create(tex, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 100f);
@@ -287,19 +345,12 @@ public static class RoundedRectSpriteUtility
 
     static bool InsideRoundedRect(float px, float py, float w, float h, float r)
     {
-        if (px < r && py < r)
-            return DistSq(px - r, py - r) <= r * r;
-        if (px > w - r && py < r)
-            return DistSq(px - (w - r), py - r) <= r * r;
-        if (px < r && py > h - r)
-            return DistSq(px - r, py - (h - r)) <= r * r;
-        if (px > w - r && py > h - r)
-            return DistSq(px - (w - r), py - (h - r)) <= r * r;
+        if (px < r && py < r)         return Dsq(px - r, py - r) <= r * r;
+        if (px > w - r && py < r)     return Dsq(px - (w - r), py - r) <= r * r;
+        if (px < r && py > h - r)     return Dsq(px - r, py - (h - r)) <= r * r;
+        if (px > w - r && py > h - r) return Dsq(px - (w - r), py - (h - r)) <= r * r;
         return true;
     }
 
-    static float DistSq(float dx, float dy)
-    {
-        return dx * dx + dy * dy;
-    }
+    static float Dsq(float dx, float dy) => dx * dx + dy * dy;
 }

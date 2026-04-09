@@ -8,8 +8,9 @@ using System.Threading;
 using UnityEngine;
 
 /// <summary>
-/// Receives IMU + optional joystick/button from Raspberry Pi Pico W over UDP (two ports for two hands).
-/// Formats: "ax,ay,az,gx,gy,gz" or extended "ax,ay,az,gx,gy,gz,jx,jy,sw" (jx,jy normalized 0..1, sw 1=select pressed).
+/// Receives IMU + optional joystick/button over UDP (two ports for two hands), e.g. Pico W Wi‑Fi.
+/// When <see cref="SerialSaberReceiver"/> has an open COM port, <see cref="ImuSourceResolver"/> uses USB first.
+/// Same CSV line format as serial: "ax,ay,az,gx,gy,gz" or extended "ax,ay,az,gx,gy,gz,jx,jy,sw" (jx,jy normalized 0..1, sw 1=select pressed).
 /// See PicoW_Controller_Reference.txt.
 /// </summary>
 public class UDPSaberReceiver : MonoBehaviour, IImuSaberReceiver

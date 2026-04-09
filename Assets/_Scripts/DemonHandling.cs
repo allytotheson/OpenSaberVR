@@ -16,11 +16,11 @@ public class DemonHandling : MonoBehaviour
 
         if (GetComponentInChildren<Collider>(true) != null)
             return;
-        var mf = GetComponentInChildren<MeshFilter>();
-        if (mf != null && mf.sharedMesh != null)
+        var mfOnRoot = GetComponent<MeshFilter>();
+        if (mfOnRoot != null && mfOnRoot.sharedMesh != null)
         {
             var mc = gameObject.AddComponent<MeshCollider>();
-            mc.sharedMesh = mf.sharedMesh;
+            mc.sharedMesh = mfOnRoot.sharedMesh;
             mc.convex = true;
         }
         if (GetComponentInChildren<Collider>(true) == null)

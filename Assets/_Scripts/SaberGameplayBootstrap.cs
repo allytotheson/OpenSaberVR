@@ -56,11 +56,18 @@ public static class SaberGameplayBootstrap
             GameObject blade = s.gameObject;
             RemoveDuplicateComponents<SwingDetector>(blade);
             RemoveDuplicateComponents<DemonHitDetector>(blade);
+            RemoveDuplicateComponents<SaberSliceTrail>(blade);
 
             if (blade.GetComponent<SwingDetector>() == null)
                 blade.AddComponent<SwingDetector>();
             if (blade.GetComponent<DemonHitDetector>() == null)
                 blade.AddComponent<DemonHitDetector>();
+
+            bool bladeIsLeft = IsLeftSaberBlade(blade, leftHand);
+            var trail = blade.GetComponent<SaberSliceTrail>();
+            if (trail == null)
+                trail = blade.AddComponent<SaberSliceTrail>();
+            trail.Configure(bladeIsLeft);
 
 #if UNITY_EDITOR || UNITY_STANDALONE
             if (!GameplayCameraEnsurer.IsXrDeviceActive())
@@ -84,9 +91,14 @@ public static class SaberGameplayBootstrap
         }
 
 #if UNITY_EDITOR || UNITY_STANDALONE
+        var spawner = Object.FindAnyObjectByType<NotesSpawner>();
+        if (spawner != null && spawner.GetComponent<DirectedDesktopSliceInput>() == null)
+            spawner.gameObject.AddComponent<DirectedDesktopSliceInput>();
+
+        // Desktop-only helpers: UDP select→swing pulses and hiding saber meshes when using flat-screen camera.
+        // Skip when XR is active so we do not add extra behaviour on headset builds.
         if (!GameplayCameraEnsurer.IsXrDeviceActive())
         {
-            var spawner = Object.FindAnyObjectByType<NotesSpawner>();
             if (spawner != null)
                 RemoveDuplicateComponents<UdpSelectToSwingBridge>(spawner.gameObject);
 
@@ -96,9 +108,6 @@ public static class SaberGameplayBootstrap
             if (spawner != null && hasImuSource &&
                 spawner.GetComponent<UdpSelectToSwingBridge>() == null)
                 spawner.gameObject.AddComponent<UdpSelectToSwingBridge>();
-
-            if (spawner != null && spawner.GetComponent<DirectedDesktopSliceInput>() == null)
-                spawner.gameObject.AddComponent<DirectedDesktopSliceInput>();
 
             if (spawner != null && spawner.GetComponent<DesktopSaberVisualHider>() == null)
                 spawner.gameObject.AddComponent<DesktopSaberVisualHider>();
@@ -235,6 +244,18 @@ public static class SaberGameplayBootstrap
             if (arr[i] != null)
                 Object.Destroy(arr[i]);
         }
+    }
+
+    static bool IsLeftSaberBlade(GameObject blade, GameObject leftHand)
+    {
+        if (blade == null || leftHand == null)
+            return false;
+        for (Transform t = blade.transform; t != null; t = t.parent)
+        {
+            if (t.gameObject == leftHand)
+                return true;
+        }
+        return false;
     }
 
     static void TrySetTag(GameObject go, string tag)

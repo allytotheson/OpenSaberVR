@@ -53,25 +53,33 @@ public class ScoreManager : MonoBehaviour
         ResetScore();
     }
 
-    public void RegisterHit()
+    /// <returns>Total points awarded for this hit (cut + combo bonus when applicable).</returns>
+    public int RegisterHit()
     {
-        AddSuccessfulHit(defaultVrCutPoints);
+        return AddSuccessfulHit(defaultVrCutPoints);
     }
 
     /// <summary>Desktop directed slice: timing-based accuracy points (same combo rules as VR).</summary>
-    public void RegisterDirectedHit(int accuracyPoints)
+    /// <returns>Total points awarded for this hit (accuracy + combo bonus when applicable).</returns>
+    public int RegisterDirectedHit(int accuracyPoints)
     {
-        AddSuccessfulHit(accuracyPoints);
+        return AddSuccessfulHit(accuracyPoints);
     }
 
-    void AddSuccessfulHit(int cutPoints)
+    int AddSuccessfulHit(int cutPoints)
     {
         _hits++;
         _combo++;
-        _cutScore += Mathf.Max(0, cutPoints);
+        int cut = Mathf.Max(0, cutPoints);
+        _cutScore += cut;
+        int bonus = 0;
         if (_combo >= 2)
-            _bonusScore += comboBonusPerHit;
+        {
+            bonus = comboBonusPerHit;
+            _bonusScore += bonus;
+        }
         UpdateUI();
+        return cut + bonus;
     }
 
     public void RegisterMiss()

@@ -50,7 +50,7 @@ public class NoteMissDetector : MonoBehaviour
         if (trailSigned < -missPastPlaneMeters)
         {
             _reported = true;
-            HitMissFlyout.ShowMiss(missFlyoutColor);
+            // HitMissFlyout.ShowMiss(missFlyoutColor); // suppressed during swing-debug (SWING flyout only)
             var sm = FindAnyObjectByType<ScoreManager>();
             if (sm != null)
                 sm.RegisterMiss();

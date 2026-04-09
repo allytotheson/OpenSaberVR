@@ -29,6 +29,32 @@ public class NotesSpawner : MonoBehaviour
     public GameObject[] Demons;
     [Tooltip("Legacy fallback if Demons empty. Can use cube prefabs; DemonHandling added at runtime.")]
     public GameObject[] Cubes;
+
+    [Header("Demon note model (Assets/Demon)")]
+    [Tooltip("Force cube/block prefabs instead of demon model. Flip to false to re-enable demons.")]
+    public bool forceUseCubePrefabs = true;
+
+    [Tooltip("Drag the imported textured_mesh prefab from Assets/Demon/Resources/DemonNoteModel/ here if Resources.Load fails in your setup.")]
+    public GameObject demonModelPrefab;
+
+    [Tooltip("When true, load the demon from Resources (path below). Ignored for spawning if Demon Model Prefab is assigned.")]
+    public bool useResourcesDemonNoteModel = true;
+
+    [Tooltip("Resources path without extension. Default: Assets/Demon/Resources/DemonNoteModel/textured_mesh.obj")]
+    public string demonModelResourcesPath = "DemonNoteModel/textured_mesh";
+
+    [Tooltip("Uniform scale on the spawn point (same value on X, Y, Z).")]
+    public float demonModelResourcesUniformScale = 0.5f;
+
+    [Tooltip("Local rotation after spawn; tweak if the model faces the wrong way for note travel.")]
+    public Vector3 demonModelResourcesLocalEuler = Vector3.zero;
+
+    [Tooltip("Left-hand notes (saber side 0). Default: Assets/_Material/BlueDemon.mat")]
+    public Material demonNoteGlowMaterialLeft;
+
+    [Tooltip("Right-hand notes (saber side 1). Default: Assets/_Material/PurpleDemon.mat")]
+    public Material demonNoteGlowMaterialRight;
+
     public GameObject Wall;
     public Transform[] SpawnPoints;
 
@@ -127,6 +153,9 @@ public class NotesSpawner : MonoBehaviour
     private readonly double beatWarmupSpeed = BeatsConstants.BEAT_WARMUP_SPEED;
 
     private AudioSource audioSource;
+
+    private GameObject _cachedResourcesDemonPrefab;
+    private bool _loggedResourcesDemonLoadFailure;
 
     private SongSettings Songsettings;
     private SceneHandling SceneHandling;
@@ -562,47 +591,66 @@ public class NotesSpawner : MonoBehaviour
             note.Hand += 2;
         }
 
-        GameObject[] prefabs = (Demons != null && Demons.Length >= 4) ? Demons : GetFallbackCubes();
-        if (prefabs == null || prefabs.Length < 4) { Debug.LogWarning("[NotesSpawner] Assign Demons or Cubes (4 prefabs: Left, Right, Left NonDir, Right NonDir)."); return; }
-        GameObject demon = Instantiate(prefabs[(int)note.Hand], SpawnPoints[point]);
-        demon.transform.localPosition = Vector3.zero;
-
-        float rotation = 0f;
-
-        switch (note.CutDirection)
+        GameObject demon;
+        bool spawnedDemonModel = TryInstantiateDemonNoteModel(point, out demon);
+        if (!spawnedDemonModel)
         {
-            case CutDirection.TOP:
-                rotation = 0f;
-                break;
-            case CutDirection.BOTTOM:
-                rotation = 180f;
-                break;
-            case CutDirection.LEFT:
-                rotation = 270f;
-                break;
-            case CutDirection.RIGHT:
-                rotation = 90f;
-                break;
-            case CutDirection.TOPLEFT:
-                rotation = 315f;
-                break;
-            case CutDirection.TOPRIGHT:
-                rotation = 45f;
-                break;
-            case CutDirection.BOTTOMLEFT:
-                rotation = 225f;
-                break;
-            case CutDirection.BOTTOMRIGHT:
-                rotation = 125f;
-                break;
-            case CutDirection.NONDIRECTION:
-                rotation = 0f;
-                break;
-            default:
-                break;
+            GameObject[] prefabs = (Demons != null && Demons.Length >= 4) ? Demons : GetFallbackCubes();
+            if (prefabs == null || prefabs.Length < 4)
+            {
+                Debug.LogWarning("[NotesSpawner] No demon model (assign Demon Model Prefab or add Assets/Demon/Resources/" + demonModelResourcesPath + ".obj) and no Demons/Cubes prefabs.");
+                return;
+            }
+
+            demon = Instantiate(prefabs[(int)note.Hand], SpawnPoints[point]);
+            demon.transform.localPosition = Vector3.zero;
         }
 
-        demon.transform.Rotate(transform.forward, rotation);
+        ApplyNoteHitLayers(demon, saberSideForColor);
+
+        // Cube prefabs use this roll so the on-block arrow matches cut direction. The demon mesh is not an
+        // arrow block — the same roll flips some cuts (e.g. BOTTOM = 180°) and looks upside-down.
+        if (!spawnedDemonModel)
+        {
+            float rotation = 0f;
+            switch (note.CutDirection)
+            {
+                case CutDirection.TOP:
+                    rotation = 0f;
+                    break;
+                case CutDirection.BOTTOM:
+                    rotation = 180f;
+                    break;
+                case CutDirection.LEFT:
+                    rotation = 270f;
+                    break;
+                case CutDirection.RIGHT:
+                    rotation = 90f;
+                    break;
+                case CutDirection.TOPLEFT:
+                    rotation = 315f;
+                    break;
+                case CutDirection.TOPRIGHT:
+                    rotation = 45f;
+                    break;
+                case CutDirection.BOTTOMLEFT:
+                    rotation = 225f;
+                    break;
+                case CutDirection.BOTTOMRIGHT:
+                    rotation = 125f;
+                    break;
+                case CutDirection.NONDIRECTION:
+                    rotation = 0f;
+                    break;
+                default:
+                    break;
+            }
+
+            demon.transform.Rotate(transform.forward, rotation);
+        }
+
+        if (spawnedDemonModel)
+            ApplyDemonNoteGlowMaterials(demon, saberSideForColor);
 
         var demonHandling = demon.GetComponent<DemonHandling>();
         if (demonHandling == null) demonHandling = demon.AddComponent<DemonHandling>();
@@ -624,6 +672,68 @@ public class NotesSpawner : MonoBehaviour
 
         var spawnCut = demon.AddComponent<SpawnedNoteCutDirection>();
         spawnCut.CutDirection = note.CutDirection;
+    }
+
+    bool TryInstantiateDemonNoteModel(int spawnPointIndex, out GameObject demon)
+    {
+        demon = null;
+        if (forceUseCubePrefabs)
+            return false;
+        GameObject source = demonModelPrefab;
+        if (source == null && useResourcesDemonNoteModel && !string.IsNullOrWhiteSpace(demonModelResourcesPath))
+        {
+            if (_cachedResourcesDemonPrefab == null)
+            {
+                _cachedResourcesDemonPrefab = Resources.Load<GameObject>(demonModelResourcesPath);
+                if (_cachedResourcesDemonPrefab == null && !_loggedResourcesDemonLoadFailure)
+                {
+                    _loggedResourcesDemonLoadFailure = true;
+                    Debug.LogError("[NotesSpawner] Resources.Load<GameObject>(\"" + demonModelResourcesPath + "\") failed. " +
+                                   "Use Assets/Demon/Resources/DemonNoteModel/textured_mesh.obj or assign Demon Model Prefab on the spawner.");
+                }
+            }
+
+            source = _cachedResourcesDemonPrefab;
+        }
+
+        if (source == null)
+            return false;
+
+        demon = Instantiate(source, SpawnPoints[spawnPointIndex]);
+        demon.transform.localPosition = Vector3.zero;
+        demon.transform.localRotation = Quaternion.Euler(demonModelResourcesLocalEuler);
+        demon.transform.localScale = Vector3.one * demonModelResourcesUniformScale;
+        return true;
+    }
+
+    void ApplyDemonNoteGlowMaterials(GameObject root, int saberSideForColor)
+    {
+        Material m = saberSideForColor == 0 ? demonNoteGlowMaterialLeft : demonNoteGlowMaterialRight;
+        if (m == null)
+            return;
+        foreach (var r in root.GetComponentsInChildren<Renderer>(true))
+        {
+            int n = r.sharedMaterials != null ? r.sharedMaterials.Length : 0;
+            if (n <= 0)
+            {
+                r.sharedMaterial = m;
+                continue;
+            }
+
+            var arr = new Material[n];
+            for (int i = 0; i < n; i++)
+                arr[i] = m;
+            r.sharedMaterials = arr;
+        }
+    }
+
+    static void ApplyNoteHitLayers(GameObject root, int saberSideForColor)
+    {
+        int layer = saberSideForColor == 0 ? LayerMask.NameToLayer("RedLayer") : LayerMask.NameToLayer("BlueLayer");
+        if (layer < 0)
+            return;
+        foreach (var t in root.GetComponentsInChildren<Transform>(true))
+            t.gameObject.layer = layer;
     }
 
     /// <summary>Fallback to Cubes when Demons is empty (e.g. during migration).</summary>

@@ -76,6 +76,14 @@ public class HitMissFlyout : MonoBehaviour
         Show("HIT", new Color(0.35f, 1f, 0.55f, 1f));
     }
 
+    /// <summary>Compact +N popup for points on cut (same style as legacy directed-hit flyout).</summary>
+    public static void ShowPointGain(int points)
+    {
+        if (points <= 0)
+            return;
+        Show($"+{points}", new Color(0.35f, 1f, 0.55f, 1f), fontSize: 40f, anchorY: 0.52f);
+    }
+
     public static void ShowMiss()
     {
         ShowMiss(new Color(1f, 0.35f, 0.4f, 1f));
@@ -89,7 +97,16 @@ public class HitMissFlyout : MonoBehaviour
         Show("MISS", c);
     }
 
-    public static void Show(string message, Color color)
+    /// <summary>Debug: show when a motion swing is registered (left vs right tint).</summary>
+    public static void ShowSwing(bool isLeftHand)
+    {
+        Color c = isLeftHand
+            ? new Color(1f, 0.75f, 0.35f, 1f)
+            : new Color(0.45f, 0.85f, 1f, 1f);
+        Show("SWING", c);
+    }
+
+    public static void Show(string message, Color color, float fontSize = 72f, float anchorY = 0.58f)
     {
         if (_instance == null)
         {
@@ -97,27 +114,29 @@ public class HitMissFlyout : MonoBehaviour
             DontDestroyOnLoad(go);
             _instance = go.AddComponent<HitMissFlyout>();
         }
-        _instance.Play(message, color);
+        _instance.Play(message, color, fontSize, anchorY);
     }
 
-    void Play(string message, Color color)
+    void Play(string message, Color color, float fontSize, float anchorY)
     {
         if (_label == null)
             Build();
 
         if (_running != null)
             StopCoroutine(_running);
-        _running = StartCoroutine(Animate(message, color));
+        _running = StartCoroutine(Animate(message, color, fontSize, anchorY));
     }
 
-    IEnumerator Animate(string message, Color color)
+    IEnumerator Animate(string message, Color color, float fontSize, float anchorY)
     {
+        _label.fontSize = Mathf.RoundToInt(fontSize);
+        RectTransform rt = _label.rectTransform;
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, anchorY);
+
         _label.text = message;
         _label.color = color;
         _label.enabled = true;
         _group.alpha = 1f;
-
-        RectTransform rt = _label.rectTransform;
         const float dur = 0.55f;
         float t = 0f;
         Vector3 startScale = Vector3.one * 0.55f;
