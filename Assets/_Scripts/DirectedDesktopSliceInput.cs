@@ -161,8 +161,13 @@ public sealed class DirectedDesktopSliceInput : MonoBehaviour
 
         var slice  = hand.GetComponentInChildren<Slice>(true);
         int points = ComputeAccuracyPoints(bestAbs);
+        Vector3 tipVel = Vector3.zero;
+        var smc = hand.GetComponentInParent<SaberMotionController>();
+        if (smc != null)
+            tipVel = smc.GetTipVelocity();
+
         DirectedSliceHitEffects.ApplyHit(bestDh, slice, _score, points,
-            leftHand ? _leftSaberHaptics : _rightSaberHaptics);
+            leftHand ? _leftSaberHaptics : _rightSaberHaptics, tipVel);
         DirectedSwipeCornerHud.FlashRegisteredSwipe(leftHand, cutUp: true);
 
         if (leftHand) _leftCooldown  = sliceCooldown;
@@ -217,13 +222,16 @@ public static class DemonHitDetectorSampleUtil
 /// <summary>Slice + debris + score + flyout (mirrors <see cref="DemonHitDetector"/> success path).</summary>
 public static class DirectedSliceHitEffects
 {
-    public static void ApplyHit(DemonHandling dh, Slice slicer, ScoreManager scoreManager, int accuracyPoints, Saber vrHaptics)
+    public static void ApplyHit(DemonHandling dh, Slice slicer, ScoreManager scoreManager, int accuracyPoints, Saber vrHaptics,
+        Vector3 tipVelocityWorld = default)
     {
         if (dh == null || !dh.enabled)
             return;
 
         var root = dh.transform;
         var go   = root.gameObject;
+
+        Vector3 fxCenter = DemonHitDetectorSampleUtil.SampleNotePoint(root);
 
         dh.enabled = false;
 
@@ -247,6 +255,7 @@ public static class DirectedSliceHitEffects
                     col.enabled = false;
                 debris.layer = 0;
 
+                // Hide only the duplicate hull; hull pieces from SliceInstantiate must stay visible.
                 foreach (var r in debris.GetComponentsInChildren<Renderer>())
                     r.enabled = false;
                 foreach (var cut in cutted)
@@ -254,6 +263,8 @@ public static class DirectedSliceHitEffects
                     if (cut == null)
                         continue;
                     cut.transform.SetParent(debris.transform);
+                    foreach (var rend in cut.GetComponentsInChildren<Renderer>())
+                        rend.enabled = true;
                     cut.AddComponent<BoxCollider>();
                     var rb = cut.AddComponent<Rigidbody>();
                     rb.useGravity = true;
@@ -263,6 +274,9 @@ public static class DirectedSliceHitEffects
                 Object.Destroy(debris, 2f);
             }
         }
+
+        Vector3 velForFx = tipVelocityWorld.sqrMagnitude > 1e-6f ? tipVelocityWorld : Vector3.up * 1.5f;
+        DirectedSliceWorldFx.Play(fxCenter, velForFx);
 
         if (scoreManager != null)
         {

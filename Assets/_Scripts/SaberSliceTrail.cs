@@ -124,10 +124,8 @@ public class SaberSliceTrail : MonoBehaviour
         _trail.autodestruct = false;
         _trail.minVertexDistance = 0.01f;
 
-        Color core = _isLeft
-            ? new Color(1f, 0.2f, 0.28f, 0.92f)
-            : new Color(0.2f, 0.55f, 1f, 0.92f);
-        Color fade = new Color(core.r, core.g, core.b, 0f);
+        // Bright white slice trail (hand side still distinguished by sweep direction / motion)
+        Color core = new Color(1f, 1f, 1f, 0.92f);
 
         var colorGrad = new Gradient();
         colorGrad.SetKeys(

@@ -437,6 +437,8 @@ public class DemonHitDetector : MonoBehaviour
                 {
                     if (cut == null) continue;
                     cut.transform.SetParent(debris.transform);
+                    foreach (var rend in cut.GetComponentsInChildren<Renderer>())
+                        rend.enabled = true;
                     cut.AddComponent<BoxCollider>();
                     var rb = cut.AddComponent<Rigidbody>();
                     rb.useGravity = true;
@@ -444,6 +446,19 @@ public class DemonHitDetector : MonoBehaviour
                 debris.transform.SetPositionAndRotation(root.position, root.rotation);
                 Destroy(debris, 2f);
             }
+        }
+
+        {
+            Vector3 fxCenter = DemonHitDetectorSampleUtil.SampleNotePoint(root);
+            Vector3 tipVel = Vector3.zero;
+            if (slicer != null)
+            {
+                var smc = slicer.GetComponentInParent<SaberMotionController>();
+                if (smc != null)
+                    tipVel = smc.GetTipVelocity();
+            }
+            Vector3 velForFx = tipVel.sqrMagnitude > 1e-6f ? tipVel : Vector3.up * 1.5f;
+            DirectedSliceWorldFx.Play(fxCenter, velForFx);
         }
 
         if (scoreManager != null)
