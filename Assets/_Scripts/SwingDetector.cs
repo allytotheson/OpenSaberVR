@@ -14,7 +14,7 @@ public class SwingDetector : MonoBehaviour
     [Tooltip("Minimum angular velocity (rad/s) to count as a swing")]
     public float minSwingVelocity = 3f;
     [Tooltip("Cooldown after swing ends (seconds) before next swing can be detected")]
-    public float swingCooldown = 0.15f;
+    public float swingCooldown = 0.28f;
 
     [Header("Stuck-swing safety")]
     [Tooltip("Max seconds isSwinging can stay true before being forcibly reset. Prevents a stuck-true state from blocking all future swing events.")]
@@ -39,11 +39,7 @@ public class SwingDetector : MonoBehaviour
     private bool _prevMotionSwinging;
     private bool _cachedIsLeft;
 
-    // Diagnostic logging
-    private float _nextDiagLogTime;
-    private const float DiagLogInterval = 1f;
-
-    // Exposed for debug HUD
+    // Exposed for optional debug HUD
     [NonSerialized] public float debugAngularVel;
     [NonSerialized] public float debugLinearVel;
     [NonSerialized] public string debugProviderName = "";
@@ -72,11 +68,6 @@ public class SwingDetector : MonoBehaviour
         _warmupUntil = Time.time + WarmupSeconds;
         _cachedIsLeft = ResolveIsLeftHand();
 
-        string mcStatus = motionController != null
-            ? $"found on '{motionController.gameObject.name}'"
-            : "NULL (will use position-delta fallback)";
-        Debug.Log($"[SwingDetector] Start() on '{gameObject.name}' hand={(_cachedIsLeft ? "Left" : "Right")} " +
-                  $"motionController={mcStatus} minSwingVelocity={minSwingVelocity:F3}");
     }
 
     bool ResolveIsLeftHand()
@@ -151,28 +142,10 @@ public class SwingDetector : MonoBehaviour
 
         if (isSwinging && !_prevMotionSwinging)
         {
-            Debug.Log($"[SwingDetector] >>> SWING STARTED on '{gameObject.name}' hand={(_cachedIsLeft ? "Left" : "Right")} " +
-                      $"angVel={angularVel:F3} linVel={linearVel:F3} threshold={minSwingVelocity:F3} provider={debugProviderName}");
-            HitMissFlyout.ShowSwing(_cachedIsLeft);
             SwingStarted?.Invoke(_cachedIsLeft);
             var directed = UnityEngine.Object.FindAnyObjectByType<DirectedDesktopSliceInput>();
             if (directed != null)
                 directed.TrySliceFromMotionSwing(_cachedIsLeft);
-        }
-        else if (!isSwinging && _prevMotionSwinging)
-        {
-            Debug.Log($"[SwingDetector] <<< SWING ENDED on '{gameObject.name}' hand={(_cachedIsLeft ? "Left" : "Right")} " +
-                      $"angVel={angularVel:F3} linVel={linearVel:F3}");
-        }
-
-        // Periodic diagnostic log (~every 1s)
-        if (Time.time >= _nextDiagLogTime)
-        {
-            _nextDiagLogTime = Time.time + DiagLogInterval;
-            Debug.Log($"[SwingDetector][DIAG] '{gameObject.name}' hand={(_cachedIsLeft ? "L" : "R")} | " +
-                      $"angVel={angularVel:F3} linVel={linearVel:F3} threshold={minSwingVelocity:F3} | " +
-                      $"isSwinging={isSwinging} prevSwinging={_prevMotionSwinging} cooldown={inCooldown} above={aboveThreshold} | " +
-                      $"provider={debugProviderName}");
         }
 
         _prevMotionSwinging = isSwinging;

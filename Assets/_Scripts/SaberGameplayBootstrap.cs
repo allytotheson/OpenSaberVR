@@ -73,8 +73,10 @@ public static class SaberGameplayBootstrap
             if (!GameplayCameraEnsurer.IsXrDeviceActive())
             {
                 var sw = blade.GetComponent<SwingDetector>();
+                // Desktop/flat-screen IMU: require a stronger motion than the old 0.85 rad/s floor
+                // (that floor made swings very easy to trigger).
                 if (sw != null)
-                    sw.minSwingVelocity = Mathf.Min(sw.minSwingVelocity, 0.85f);
+                    sw.minSwingVelocity = Mathf.Max(sw.minSwingVelocity, 1.35f);
             }
 #endif
         }

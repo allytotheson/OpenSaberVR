@@ -104,6 +104,16 @@ public class DemonHitDetector : MonoBehaviour
             return;
         }
 
+        // Flat-screen / IMU: cuts are handled only by DirectedDesktopSliceInput (strict plane window).
+        // If we also run overlap/trigger hits here, a long IMU "swing" keeps IsSwinging true and notes can
+        // register later when they drift into DemonHitDetector's forgiving early slab (hitPlaneEarlyExtraMeters),
+        // which feels like a saved swing. VR still uses this overlap path.
+        if (UseDesktopDirectedSliceOnly())
+        {
+            previousPos = transform.position;
+            return;
+        }
+
         float radius = overlapRadius;
 
         if (TryHitWithOverlap(pulse, radius))
@@ -141,10 +151,19 @@ public class DemonHitDetector : MonoBehaviour
             return;
         if (swingDetector.IsKeyboardPulseSwinging)
             return;
+        if (UseDesktopDirectedSliceOnly())
+            return;
         if (!IsDemon(other.transform))
             return;
         TryHitFromTriggerContact(other);
     }
+
+#if UNITY_EDITOR || UNITY_STANDALONE
+    /// <summary>True when not in XR: desktop/IMU gameplay uses <see cref="DirectedDesktopSliceInput"/> only for scoring.</summary>
+    static bool UseDesktopDirectedSliceOnly() => !GameplayCameraEnsurer.IsXrDeviceActive();
+#else
+    static bool UseDesktopDirectedSliceOnly() => false;
+#endif
 
     void EnsureBladeRigidbodyAndHitTrigger()
     {

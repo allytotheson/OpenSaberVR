@@ -11,14 +11,14 @@ public sealed class DirectedDesktopSliceInput : MonoBehaviour
 {
     [Header("IMU Slice Detection")]
     [Tooltip("Gyroscope magnitude (deg/s) that counts as a slice. Lower = more sensitive. Tune between 120-250.")]
-    public float sliceGyroThreshold = 150f;
+    public float sliceGyroThreshold = 175f;
 
-    [Tooltip("Minimum seconds between two slices on the same hand (prevents double-hits from one swing).")]
-    public float sliceCooldown = 0.3f;
+    [Tooltip("Minimum seconds between two slices on the same hand (prevents double-hits when SwingDetector and gyro both fire).")]
+    public float sliceCooldown = 0.55f;
 
     [Header("Note hit window")]
-    [Tooltip("Max |signed distance| from the hit plane for a note to be hittable (meters). Include early window (~4 m ≈ 0.5 s at 8 m/s).")]
-    public float maxPlaneDistanceMeters = 4.6f;
+    [Tooltip("Max |signed distance| from the hit plane for a note to be hittable (meters). Smaller = must time cuts closer to the plane.")]
+    public float maxPlaneDistanceMeters = 3.0f;
 
     [Tooltip("Max distance from the gameplay camera to the note (meters).")]
     public float maxDistanceFromPlayerMeters = 4.5f;
@@ -78,32 +78,31 @@ public sealed class DirectedDesktopSliceInput : MonoBehaviour
         bool rightAbove = rightGyro >= sliceGyroThreshold;
 
         if (leftAbove && !_prevLeftAbove && _leftCooldown <= 0f)
-        {
             TrySlice(leftHand: true);
-            _leftCooldown = sliceCooldown;
-        }
 
         if (rightAbove && !_prevRightAbove && _rightCooldown <= 0f)
-        {
             TrySlice(leftHand: false);
-            _rightCooldown = sliceCooldown;
-        }
 
         _prevLeftAbove  = leftAbove;
         _prevRightAbove = rightAbove;
 
 #if UNITY_EDITOR || UNITY_STANDALONE
         // Keep keyboard fallback for editor testing (no hardware attached).
-        if (Input.GetKeyDown(KeyCode.Q)) { TrySlice(true);  _leftCooldown  = sliceCooldown; }
-        if (Input.GetKeyDown(KeyCode.Z)) { TrySlice(true);  _leftCooldown  = sliceCooldown; }
-        if (Input.GetKeyDown(KeyCode.O)) { TrySlice(false); _rightCooldown = sliceCooldown; }
-        if (Input.GetKeyDown(KeyCode.M)) { TrySlice(false); _rightCooldown = sliceCooldown; }
+        if (Input.GetKeyDown(KeyCode.Q)) TrySlice(true);
+        if (Input.GetKeyDown(KeyCode.Z)) TrySlice(true);
+        if (Input.GetKeyDown(KeyCode.O)) TrySlice(false);
+        if (Input.GetKeyDown(KeyCode.M)) TrySlice(false);
 #endif
     }
 
     /// <param name="notifyDesktopSlashFx">If false, skip comma/keyboard slash events (use when <see cref="SwingDetector"/> already fired <see cref="SwingDetector.SwingStarted"/> for trail).</param>
     public void TrySlice(bool leftHand, bool notifyDesktopSlashFx = true)
     {
+        // Debounce all entry points (gyro rising edge, SwingDetector.TrySliceFromMotionSwing, keys)
+        // so one physical motion cannot register two cuts in one cooldown window.
+        if (leftHand ? _leftCooldown > 0f : _rightCooldown > 0f)
+            return;
+
         if (!DesktopSaberTestInput.TryResolveSabers(out GameObject leftRoot, out GameObject rightRoot))
             return;
 
@@ -154,13 +153,20 @@ public sealed class DirectedDesktopSliceInput : MonoBehaviour
         }
 
         if (bestDh == null)
+        {
+            if (leftHand) _leftCooldown  = sliceCooldown;
+            else           _rightCooldown = sliceCooldown;
             return;
+        }
 
         var slice  = hand.GetComponentInChildren<Slice>(true);
         int points = ComputeAccuracyPoints(bestAbs);
         DirectedSliceHitEffects.ApplyHit(bestDh, slice, _score, points,
             leftHand ? _leftSaberHaptics : _rightSaberHaptics);
         DirectedSwipeCornerHud.FlashRegisteredSwipe(leftHand, cutUp: true);
+
+        if (leftHand) _leftCooldown  = sliceCooldown;
+        else           _rightCooldown = sliceCooldown;
     }
 
     int ComputeAccuracyPoints(float absPlaneDistance)

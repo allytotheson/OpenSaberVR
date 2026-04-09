@@ -15,15 +15,9 @@ public class SwingDebugHud : MonoBehaviour
     Canvas _canvas;
     Text _label;
 
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-    static void AutoCreate()
-    {
-        if (FindAnyObjectByType<SwingDebugHud>(FindObjectsInactive.Include) != null)
-            return;
-        var go = new GameObject(nameof(SwingDebugHud));
-        DontDestroyOnLoad(go);
-        go.AddComponent<SwingDebugHud>();
-    }
+    // Intentionally no RuntimeInitializeOnLoadMethod: add this component manually when debugging
+    // so the on-screen overlay does not appear in normal play (order of SwingDetector instances
+    // in FindObjectsByType is not stable across scene reloads).
 
     void Awake()
     {

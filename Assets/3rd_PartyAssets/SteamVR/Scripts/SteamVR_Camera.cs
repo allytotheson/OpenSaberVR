@@ -18,7 +18,10 @@ public class SteamVR_Camera : MonoBehaviour
 	public Transform offset { get { return _head; } } // legacy
 	public Transform origin { get { return _head.parent; } }
 
+#pragma warning disable CS0109 // Hides obsolete Component.camera; `new` required for CS0108
 	public new Camera camera { get; private set; }
+#pragma warning restore CS0109
+
 
 	[SerializeField]
 	private Transform _ears;

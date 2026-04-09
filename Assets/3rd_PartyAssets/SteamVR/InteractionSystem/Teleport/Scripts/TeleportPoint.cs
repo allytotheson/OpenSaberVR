@@ -38,7 +38,10 @@ namespace Valve.VR.InteractionSystem
 		private MeshRenderer lockedIcon;
 		private MeshRenderer pointIcon;
 		private Transform lookAtJointTransform;
+#pragma warning disable CS0109 // Hides obsolete Component.animation; `new` required for CS0108
 		private new Animation animation;
+#pragma warning restore CS0109
+
 		private Text titleText;
 		private Player player;
 		private Vector3 lookAtPosition = Vector3.zero;

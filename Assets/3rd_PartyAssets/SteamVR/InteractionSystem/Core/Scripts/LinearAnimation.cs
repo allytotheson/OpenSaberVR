@@ -13,7 +13,10 @@ namespace Valve.VR.InteractionSystem
 	public class LinearAnimation : MonoBehaviour
 	{
 		public LinearMapping linearMapping;
+#pragma warning disable CS0109 // Hides obsolete Component.animation; `new` required for CS0108
 		public new Animation animation;
+#pragma warning restore CS0109
+
 
 		private AnimationState animState;
 		private float animLength;
