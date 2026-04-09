@@ -1621,6 +1621,7 @@ MonoBehaviour:
   - {fileID: 5089034330109808136, guid: be05b17fb23b00c459481ccafe98a4f3, type: 3}
   - {fileID: 2267269557703769182, guid: d1b9a357b66c1bb4d94ece8d834540b0, type: 3}
   - {fileID: 5089034330109808136, guid: 651bdfd30a8c9e145bc376e53a71582a, type: 3}
+  forceUseCubePrefabs: 1
   demonModelPrefab: {fileID: 0}
   useResourcesDemonNoteModel: 1
   demonModelResourcesPath: DemonNoteModel/textured_mesh
@@ -1628,6 +1629,15 @@ MonoBehaviour:
   demonModelResourcesLocalEuler: {x: 0, y: 0, z: 0}
   demonNoteGlowMaterialLeft: {fileID: 2100000, guid: b7e1d802e81405f4eb1548b0fc7838ee, type: 2}
   demonNoteGlowMaterialRight: {fileID: 2100000, guid: aba0043fa8ad3994c97d91039f0f73ef, type: 2}
+  showRandomDemonFaces: 1
+  demonFaceTexturesOverrideLeft: []
+  demonFaceTexturesOverrideRight: []
+  demonFaceTexturesOverride: []
+  demonFaceResourcesPath: DemonFaces
+  hideDirectionalArrowBar: 1
+  leftNoteTeamColor: {r: 0.82352943, g: 0.6039216, b: 0.8627451, a: 1}
+  rightNoteTeamColor: {r: 0.5411765, g: 0.81960785, b: 0.9490196, a: 1}
+  demonFaceGreenRemovalStrength: 0.9
   Wall: {fileID: 4307119938621768877, guid: 047102afd6534544fafcdc12fb9c83a7, type: 3}
   SpawnPoints:
   - {fileID: 370705722}

@@ -14,9 +14,12 @@ public static class NoteDemonFaceOverlay
 {
     public const string CompositeShaderName = "OpenSaber/DemonFaceComposite";
 
-    /// <summary>Left-hand (purple team) PNGs: <c>Assets/demons/purple</c> and Resources <c>…/purple</c>.</summary>
+    /// <summary>Resources path (without extension): Assets/Resources/Shaders/DemonFaceComposite.shader</summary>
+    const string CompositeShaderResourcesPath = "Shaders/DemonFaceComposite";
+
+    /// <summary>Left-hand (purple team) PNGs: <c>Assets/StreamingAssets/…/purple</c> (build), Resources, or Editor <c>Assets/demons/purple</c>.</summary>
     public const string DemonsSubfolderPurple = "purple";
-    /// <summary>Right-hand (blue team) PNGs: <c>Assets/demons/blue</c> and Resources <c>…/blue</c>.</summary>
+    /// <summary>Right-hand (blue team) PNGs: <c>Assets/StreamingAssets/…/blue</c> (build), Resources, or Editor <c>Assets/demons/blue</c>.</summary>
     public const string DemonsSubfolderBlue = "blue";
 
     const float ZEpsilon = 0.004f;
@@ -33,7 +36,10 @@ public static class NoteDemonFaceOverlay
         if (_compositeMat != null)
             return _compositeMat;
 
-        Shader sh = Shader.Find(CompositeShaderName);
+        // Resources.Load is reliable in builds; Shader.Find only works for Always-Included or referenced shaders.
+        Shader sh = Resources.Load<Shader>(CompositeShaderResourcesPath);
+        if (sh == null)
+            sh = Shader.Find(CompositeShaderName);
         if (sh == null)
             return null;
 
@@ -79,6 +85,46 @@ public static class NoteDemonFaceOverlay
         return _legacyOpaqueBackingMat;
     }
 
+    /// <summary>Main cube body mesh for face placement (skips small direction-bar child meshes).</summary>
+    public static MeshFilter ResolveNoteBodyMeshFilter(Transform noteRoot)
+    {
+        if (noteRoot == null)
+            return null;
+
+        var mf = noteRoot.GetComponent<MeshFilter>();
+        if (mf != null && mf.sharedMesh != null)
+            return mf;
+
+        MeshFilter best = null;
+        float bestVol = 0f;
+        foreach (var m in noteRoot.GetComponentsInChildren<MeshFilter>(true))
+        {
+            if (m == null || m.sharedMesh == null)
+                continue;
+            if (m.gameObject.name.IndexOf("Cube (8)", System.StringComparison.Ordinal) >= 0)
+                continue;
+            Vector3 s = m.sharedMesh.bounds.size;
+            float vol = s.x * s.y * s.z;
+            if (vol > bestVol)
+            {
+                bestVol = vol;
+                best = m;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>Strike-face point in <paramref name="noteRoot"/> local space (mesh may be on a child).</summary>
+    static Vector3 FacePointInRootLocal(Transform noteRoot, Transform meshAnchor, Bounds meshLocalBounds, float zBiasAlongMeshMinusZ)
+    {
+        Vector3 inMeshLocal = new Vector3(
+            meshLocalBounds.center.x,
+            meshLocalBounds.center.y,
+            meshLocalBounds.center.z - meshLocalBounds.extents.z - zBiasAlongMeshMinusZ);
+        return noteRoot.InverseTransformPoint(meshAnchor.TransformPoint(inMeshLocal));
+    }
+
     /// <param name="rotationBeforeCut">Demon root world rotation before cut-direction spin.</param>
     /// <param name="faceBackingColor">Team color behind portrait and under transparent / keyed areas.</param>
     /// <param name="greenRemovalStrength">0 = keep greens, 1 = aggressively replace green-screen with backing.</param>
@@ -88,16 +134,18 @@ public static class NoteDemonFaceOverlay
         if (noteRoot == null || texture == null)
             return;
 
-        var mf = noteRoot.GetComponent<MeshFilter>();
+        var mf = ResolveNoteBodyMeshFilter(noteRoot);
         if (mf == null || mf.sharedMesh == null)
             return;
 
+        Transform meshAnchor = mf.transform;
         Bounds b = mf.sharedMesh.bounds;
-        float zFace = b.center.z - b.extents.z;
         Quaternion faceOnMinusZ = Quaternion.Euler(0f, 180f, 0f);
         Quaternion qAfter = noteRoot.rotation;
         Quaternion localOrient = Quaternion.Inverse(qAfter) * rotationBeforeCut * faceOnMinusZ;
         Vector3 baseScale = new Vector3(b.size.x, b.size.y, 1f);
+
+        Vector3 quadRootLocal = FacePointInRootLocal(noteRoot, meshAnchor, b, ZEpsilon);
 
         Material composite = CompositeMaterial();
         if (composite != null)
@@ -106,7 +154,7 @@ public static class NoteDemonFaceOverlay
             go.name = "DemonFaceComposite";
             Object.Destroy(go.GetComponent<Collider>());
             go.transform.SetParent(noteRoot, false);
-            go.transform.localPosition = new Vector3(b.center.x, b.center.y, zFace - ZEpsilon);
+            go.transform.localPosition = quadRootLocal;
             go.transform.localRotation = localOrient;
             go.transform.localScale = baseScale;
             if (layer >= 0)
@@ -135,11 +183,12 @@ public static class NoteDemonFaceOverlay
                              "Falling back to two quads (backing may not show through some PNGs). Import Assets/_Shaders/DemonFaceComposite.shader.");
         }
 
-        TryAttachLegacyTwoQuad(noteRoot, texture, layer, faceBackingColor, b, zFace, localOrient, baseScale);
+        Vector3 backRootLocal = FacePointInRootLocal(noteRoot, meshAnchor, b, ZEpsilon - BackingInsetLocalZ);
+        TryAttachLegacyTwoQuad(noteRoot, texture, layer, faceBackingColor, quadRootLocal, backRootLocal, localOrient, baseScale);
     }
 
-    static void TryAttachLegacyTwoQuad(Transform noteRoot, Texture2D texture, int layer, Color faceBackingColor, Bounds b, float zFace,
-        Quaternion localOrient, Vector3 baseScale)
+    static void TryAttachLegacyTwoQuad(Transform noteRoot, Texture2D texture, int layer, Color faceBackingColor, Vector3 quadRootLocal,
+        Vector3 backRootLocal, Quaternion localOrient, Vector3 baseScale)
     {
         Material backingMat = LegacyOpaqueBackingMaterial();
         Material texMat = LegacyTransparentMaterial();
@@ -152,7 +201,7 @@ public static class NoteDemonFaceOverlay
             back.name = "DemonFaceBacking";
             Object.Destroy(back.GetComponent<Collider>());
             back.transform.SetParent(noteRoot, false);
-            back.transform.localPosition = new Vector3(b.center.x, b.center.y, zFace - ZEpsilon + BackingInsetLocalZ);
+            back.transform.localPosition = backRootLocal;
             back.transform.localRotation = localOrient;
             back.transform.localScale = baseScale;
             if (layer >= 0)
@@ -173,7 +222,7 @@ public static class NoteDemonFaceOverlay
         go.name = "DemonFaceOverlay";
         Object.Destroy(go.GetComponent<Collider>());
         go.transform.SetParent(noteRoot, false);
-        go.transform.localPosition = new Vector3(b.center.x, b.center.y, zFace - ZEpsilon);
+        go.transform.localPosition = quadRootLocal;
         go.transform.localRotation = localOrient;
         go.transform.localScale = baseScale;
         if (layer >= 0)

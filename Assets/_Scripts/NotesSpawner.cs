@@ -68,7 +68,7 @@ public class NotesSpawner : MonoBehaviour
     [Tooltip("Legacy: if both side overrides and purple/blue folders are empty, these textures are used for BOTH sides (old behavior). Prefer demonFaceTexturesOverrideLeft/Right or Assets/demons/purple|blue.")]
     public Texture2D[] demonFaceTexturesOverride;
 
-    [Tooltip("Resources base path (e.g. DemonFaces). Expect PNGs in subfolders purple/ and blue/ for left vs right notes. Full example: Resources/DemonFaces/purple/*.png")]
+    [Tooltip("Folder name under StreamingAssets and (optional) Resources: Assets/StreamingAssets/DemonFaces/purple|blue/*.png is copied to the Windows build as GameName_Data/StreamingAssets/... and loaded from disk (reliable). Fallback: Assets/Resources/DemonFaces/.... Editor can also use Assets/demons/purple|blue.")]
     public string demonFaceResourcesPath = "DemonFaces";
 
     [Header("Cube note visuals")]
@@ -190,6 +190,8 @@ public class NotesSpawner : MonoBehaviour
     private Texture2D[] _cachedDemonFaceTexturesLeft;
     private Texture2D[] _cachedDemonFaceTexturesRight;
     private bool _cachedDemonFaceTexturesTried;
+
+    static bool _loggedDemonFaceMissingInPlayer;
 
     private SongSettings Songsettings;
     private SceneHandling SceneHandling;
@@ -418,20 +420,181 @@ public class NotesSpawner : MonoBehaviour
         return basePath.Trim().TrimEnd('/', '\\') + "/" + subfolder;
     }
 
+    /// <summary>
+    /// Standalone-friendly: PNGs under <see cref="Application.streamingAssetsPath"/>/&lt;root&gt;/&lt;subfolder&gt;/
+    /// (e.g. GameName_Data/StreamingAssets/DemonFaces/purple/) are copied into the player build.
+    /// </summary>
+    static Texture2D[] LoadDemonFaceTexturesFromStreamingAssets(string rootFolder, string subfolder)
+    {
+        if (string.IsNullOrWhiteSpace(rootFolder) || string.IsNullOrWhiteSpace(subfolder))
+            return null;
+        string streamingRoot = Application.streamingAssetsPath;
+        if (string.IsNullOrEmpty(streamingRoot))
+            return null;
+
+#if !UNITY_EDITOR && UNITY_ANDROID
+        return null;
+#else
+        try
+        {
+            streamingRoot = streamingRoot.Trim().TrimEnd('/', '\\');
+            rootFolder = rootFolder.Trim().TrimStart('/', '\\');
+            subfolder = subfolder.Trim().TrimStart('/', '\\');
+
+            string dir = Path.GetFullPath(Path.Combine(streamingRoot, rootFolder, subfolder));
+            if (!Directory.Exists(dir))
+            {
+                // Case-only mismatch (some copies use different casing on disk).
+                string parent = Path.GetFullPath(Path.Combine(streamingRoot, rootFolder));
+                if (Directory.Exists(parent))
+                {
+                    foreach (string cand in Directory.GetDirectories(parent))
+                    {
+                        if (string.Equals(Path.GetFileName(cand), subfolder, StringComparison.OrdinalIgnoreCase))
+                        {
+                            dir = cand;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!Directory.Exists(dir))
+                return null;
+
+            string[] files = Directory.GetFiles(dir, "*.png", SearchOption.TopDirectoryOnly);
+            if (files == null || files.Length == 0)
+                return null;
+
+            Array.Sort(files, (a, b) => string.CompareOrdinal(a, b));
+            var list = new List<Texture2D>(files.Length);
+            foreach (string path in files)
+            {
+                byte[] data;
+                try
+                {
+                    data = File.ReadAllBytes(path);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (data == null || data.Length == 0)
+                    continue;
+
+                var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false, false);
+                tex.name = Path.GetFileNameWithoutExtension(path);
+                if (!tex.LoadImage(data))
+                {
+                    UObject.Destroy(tex);
+                    continue;
+                }
+
+                tex.wrapMode = TextureWrapMode.Clamp;
+                tex.filterMode = FilterMode.Bilinear;
+                tex.anisoLevel = 1;
+                tex.Apply(false, false);
+                list.Add(tex);
+            }
+
+            return list.Count > 0 ? list.ToArray() : null;
+        }
+        catch
+        {
+            return null;
+        }
+#endif
+    }
+
+    /// <summary>
+    /// Includes <see cref="Sprite"/> assets (main asset type when texture is imported as Sprite), not only <see cref="Texture2D"/>.
+    /// </summary>
+    static Texture2D[] LoadDemonFaceTexturesFromResources(string resourcesPath)
+    {
+        if (string.IsNullOrWhiteSpace(resourcesPath))
+            return null;
+
+        var direct = Resources.LoadAll<Texture2D>(resourcesPath);
+        if (direct != null && direct.Length > 0)
+            return direct;
+
+        UObject[] all = Resources.LoadAll(resourcesPath);
+        if (all == null || all.Length == 0)
+            return null;
+
+        var list = new List<Texture2D>();
+        var seen = new HashSet<int>();
+        foreach (UObject o in all)
+        {
+            Texture2D tex = null;
+            if (o is Texture2D t)
+                tex = t;
+            else if (o is Sprite sp && sp.texture != null)
+                tex = sp.texture;
+
+            if (tex == null)
+                continue;
+            int id = tex.GetInstanceID();
+            if (seen.Add(id))
+                list.Add(tex);
+        }
+
+        if (list.Count == 0)
+            return null;
+        list.Sort((a, b) => string.CompareOrdinal(a.name, b.name));
+        return list.ToArray();
+    }
+
+    /// <summary>
+    /// <see cref="Resources.LoadAll"/> can return nothing in some player builds; loading each asset by path is more reliable.
+    /// </summary>
+    static Texture2D[] LoadDemonFaceTexturesFromResourcesExplicit(string resourcesPath)
+    {
+        if (string.IsNullOrWhiteSpace(resourcesPath))
+            return null;
+
+        var list = new List<Texture2D>();
+        var seen = new HashSet<int>();
+        string p = resourcesPath.Trim().TrimStart('/', '\\');
+
+        for (int i = 1; i <= 64; i++)
+        {
+            var t = Resources.Load<Texture2D>(p + "/demon" + i);
+            if (t != null && seen.Add(t.GetInstanceID()))
+                list.Add(t);
+        }
+
+        return list.Count > 0 ? list.ToArray() : null;
+    }
+
+    /// <summary>Effective folder name for StreamingAssets + Resources (never empty in player).</summary>
+    string DemonFacesRootFolder()
+    {
+        if (string.IsNullOrWhiteSpace(demonFaceResourcesPath))
+            return "DemonFaces";
+        return demonFaceResourcesPath.Trim().TrimStart('/', '\\');
+    }
+
     void CacheDemonFaceTexturesIfNeeded()
     {
         if (_cachedDemonFaceTexturesTried)
             return;
         _cachedDemonFaceTexturesTried = true;
 
+        string facesRoot = DemonFacesRootFolder();
+
         if (demonFaceTexturesOverrideLeft != null && demonFaceTexturesOverrideLeft.Length > 0)
             _cachedDemonFaceTexturesLeft = demonFaceTexturesOverrideLeft;
-        else if (!string.IsNullOrWhiteSpace(demonFaceResourcesPath))
+        else
         {
-            string purpleRes = CombineDemonFaceResourcesPath(demonFaceResourcesPath, NoteDemonFaceOverlay.DemonsSubfolderPurple);
-            var fromResources = Resources.LoadAll<Texture2D>(purpleRes);
-            if (fromResources != null && fromResources.Length > 0)
-                _cachedDemonFaceTexturesLeft = fromResources;
+            string purpleRes = CombineDemonFaceResourcesPath(facesRoot, NoteDemonFaceOverlay.DemonsSubfolderPurple);
+            // Resources (bundled in player) first — most reliable; then disk StreamingAssets.
+            _cachedDemonFaceTexturesLeft = LoadDemonFaceTexturesFromResourcesExplicit(purpleRes);
+            if (_cachedDemonFaceTexturesLeft == null || _cachedDemonFaceTexturesLeft.Length == 0)
+                _cachedDemonFaceTexturesLeft = LoadDemonFaceTexturesFromResources(purpleRes);
+            if (_cachedDemonFaceTexturesLeft == null || _cachedDemonFaceTexturesLeft.Length == 0)
+                _cachedDemonFaceTexturesLeft = LoadDemonFaceTexturesFromStreamingAssets(facesRoot, NoteDemonFaceOverlay.DemonsSubfolderPurple);
         }
 #if UNITY_EDITOR
         if (_cachedDemonFaceTexturesLeft == null || _cachedDemonFaceTexturesLeft.Length == 0)
@@ -440,12 +603,14 @@ public class NotesSpawner : MonoBehaviour
 
         if (demonFaceTexturesOverrideRight != null && demonFaceTexturesOverrideRight.Length > 0)
             _cachedDemonFaceTexturesRight = demonFaceTexturesOverrideRight;
-        else if (!string.IsNullOrWhiteSpace(demonFaceResourcesPath))
+        else
         {
-            string blueRes = CombineDemonFaceResourcesPath(demonFaceResourcesPath, NoteDemonFaceOverlay.DemonsSubfolderBlue);
-            var fromResources = Resources.LoadAll<Texture2D>(blueRes);
-            if (fromResources != null && fromResources.Length > 0)
-                _cachedDemonFaceTexturesRight = fromResources;
+            string blueRes = CombineDemonFaceResourcesPath(facesRoot, NoteDemonFaceOverlay.DemonsSubfolderBlue);
+            _cachedDemonFaceTexturesRight = LoadDemonFaceTexturesFromResourcesExplicit(blueRes);
+            if (_cachedDemonFaceTexturesRight == null || _cachedDemonFaceTexturesRight.Length == 0)
+                _cachedDemonFaceTexturesRight = LoadDemonFaceTexturesFromResources(blueRes);
+            if (_cachedDemonFaceTexturesRight == null || _cachedDemonFaceTexturesRight.Length == 0)
+                _cachedDemonFaceTexturesRight = LoadDemonFaceTexturesFromStreamingAssets(facesRoot, NoteDemonFaceOverlay.DemonsSubfolderBlue);
         }
 #if UNITY_EDITOR
         if (_cachedDemonFaceTexturesRight == null || _cachedDemonFaceTexturesRight.Length == 0)
@@ -460,7 +625,7 @@ public class NotesSpawner : MonoBehaviour
             _cachedDemonFaceTexturesRight = demonFaceTexturesOverride;
             Debug.LogWarning(
                 "[NotesSpawner] Demon faces: using legacy demonFaceTexturesOverride for both sides. " +
-                "Put PNGs in Assets/demons/purple (left) and Assets/demons/blue (right), or assign override arrays.");
+                "Prefer Assets/StreamingAssets/" + demonFaceResourcesPath + "/purple|blue for standalone, or Resources, or assign demonFaceTexturesOverrideLeft/Right.");
         }
 
 #if UNITY_EDITOR
@@ -476,6 +641,24 @@ public class NotesSpawner : MonoBehaviour
                 Debug.LogWarning(
                     "[NotesSpawner] No PNGs in Assets/demons/purple or Assets/demons/blue — using loose PNGs in Assets/demons/ for BOTH sides. " +
                     "Move images into purple (left blocks) and blue (right blocks) for per-side random.");
+            }
+        }
+#endif
+
+#if !UNITY_EDITOR
+        if (!_loggedDemonFaceMissingInPlayer && showRandomDemonFaces)
+        {
+            bool missL = _cachedDemonFaceTexturesLeft == null || _cachedDemonFaceTexturesLeft.Length == 0;
+            bool missR = _cachedDemonFaceTexturesRight == null || _cachedDemonFaceTexturesRight.Length == 0;
+            if (missL || missR)
+            {
+                _loggedDemonFaceMissingInPlayer = true;
+                Debug.LogWarning(
+                    "[NotesSpawner] Demon face PNGs missing in this build (left: " + (missL ? "none" : "ok") +
+                    ", right: " + (missR ? "none" : "ok") + "). " +
+                    "Expected: Assets/Resources/" + DemonFacesRootFolder() + "/purple|blue/demon1.png… (no manual copy needed), " +
+                    "or StreamingAssets/" + DemonFacesRootFolder() + "/… next to the .exe, or assign textures on the spawner. " +
+                    "Player StreamingAssets path tried: " + Application.streamingAssetsPath + ".");
             }
         }
 #endif
