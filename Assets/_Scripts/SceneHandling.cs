@@ -294,4 +294,32 @@ public class SceneHandling : MonoBehaviour
         if (mainMenu != null)
             mainMenu.RestoreUiAfterLeavingGameplay();
     }
+
+    /// <summary>
+    /// After the post-game scoreboard overlay (shown over OpenSaber), unloads gameplay and returns to the title screen.
+    /// </summary>
+    public void StartPostGameScoreboardExitRoutine()
+    {
+        StartCoroutine(PostGameScoreboardExitRoutine());
+    }
+
+    IEnumerator PostGameScoreboardExitRoutine()
+    {
+        DesktopSaberHandHalo.DestroyAllWorldHalos();
+
+        while (IsSceneLoaded("OpenSaber"))
+            yield return UnloadScene("OpenSaber");
+
+        while (IsSceneLoaded("Results"))
+            yield return UnloadScene("Results");
+
+        if (!IsSceneLoaded("Menu"))
+            yield return LoadScene("Menu", LoadSceneMode.Additive);
+
+        MenuSceneLoaded();
+
+        var mainMenu = FindAnyObjectByType<MainMenu>();
+        if (mainMenu != null)
+            mainMenu.ReturnToTitleAfterPostGameScoreboard();
+    }
 }

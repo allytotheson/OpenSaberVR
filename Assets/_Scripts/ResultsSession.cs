@@ -1,5 +1,5 @@
 /// <summary>
-/// One-shot payload into the authored <c>Results</c> scene (after a run, or scoreboard-only from the title screen).
+/// One-shot payload for the post-game scoreboard (shown over OpenSaber) or the optional <c>Results</c> scene in the editor.
 /// </summary>
 public static class ResultsSession
 {
@@ -24,21 +24,6 @@ public static class ResultsSession
         _songName = songName ?? "Unknown";
         _difficulty = difficulty ?? "";
         _highlightRank = LeaderboardData.AddScore(totalScore, _songName, _difficulty);
-        _pending = true;
-    }
-
-    /// <summary>
-    /// Opens Results as a read-only top-10 view (no new CSV row). Used from the main menu title screen.
-    /// </summary>
-    public static void PublishScoreboardBrowse()
-    {
-        _scoreboardBrowseOnly = true;
-        _finalScore = 0;
-        _cutScore = 0;
-        _bonusScore = 0;
-        _songName = "";
-        _difficulty = "";
-        _highlightRank = -1;
         _pending = true;
     }
 

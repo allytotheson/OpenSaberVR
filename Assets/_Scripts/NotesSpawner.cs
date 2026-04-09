@@ -532,7 +532,7 @@ public class NotesSpawner : MonoBehaviour
     }
 
     /// <summary>
-    /// Stops the song, saves the score to the leaderboard, loads <c>Results</c>, unloads <c>OpenSaber</c>.
+    /// Stops the song, saves the score to the leaderboard, shows the scoreboard over <c>OpenSaber</c>, then unloads OpenSaber when dismissed.
     /// Used at natural end-of-song and from the gameplay SKIP button.
     /// </summary>
     public void RequestSkipToResults()
@@ -540,7 +540,6 @@ public class NotesSpawner : MonoBehaviour
         if (menuLoadInProgress || SceneHandling == null)
             return;
         menuLoadInProgress = true;
-        enabled = false;
         if (audioSource != null)
             audioSource.Stop();
         StartCoroutine(FinishRunAndShowResultsRoutine());
@@ -561,8 +560,17 @@ public class NotesSpawner : MonoBehaviour
             ? Songsettings.CurrentSong.SelectedDifficulty : "";
 
         ResultsSession.PublishRunForResultsScene(finalScore, cutScore, bonusScore, songName, difficulty);
-        yield return SceneHandling.LoadScene("Results", LoadSceneMode.Additive);
-        yield return SceneHandling.UnloadScene("OpenSaber");
+
+        yield return null;
+
+        // Scoreboard over OpenSaber (stadium visible); overlay lives on SceneHandling so it survives until dismiss.
+        if (SceneHandling == null)
+        {
+            Debug.LogError("[NotesSpawner] SceneHandling missing; cannot show scoreboard.");
+            yield break;
+        }
+
+        PostGameScoreboardFlow.PresentAfterRun(SceneHandling);
     }
 
     void GenerateNote(Note note)

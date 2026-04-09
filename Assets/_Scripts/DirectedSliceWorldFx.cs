@@ -101,6 +101,8 @@ sealed class DirectedSliceWorldFxRunner : MonoBehaviour
         pGo.transform.position = worldCenter;
 
         _ps = pGo.AddComponent<ParticleSystem>();
+        // Default playOnAwake runs in Awake before we can set main; stop+clear so main.* can be configured.
+        _ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         var main = _ps.main;
         main.playOnAwake = false;
         main.loop = false;
